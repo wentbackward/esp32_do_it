@@ -45,11 +45,7 @@ static esp_err_t touch_manual_reset(void)
 
 esp_err_t app_touch_init(app_touch_t *out)
 {
-#if !CONFIG_APP_TOUCH_ENABLE
-    (void)out;
-    ESP_LOGW(TAG, "Touch disabled in Kconfig");
-    return ESP_ERR_NOT_SUPPORTED;
-#else
+    
     ESP_RETURN_ON_FALSE(out, ESP_ERR_INVALID_ARG, TAG, "null out");
 
     const i2c_port_t port =
@@ -109,5 +105,4 @@ esp_err_t app_touch_init(app_touch_t *out)
     out->tp_io = tp_io;
     ESP_LOGI(TAG, "Touch init OK (addr=0x%02X)", CONFIG_APP_TOUCH_I2C_ADDR);
     return ESP_OK;
-#endif
 }

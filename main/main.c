@@ -74,7 +74,7 @@ void app_main(void)
     // Touch (optional)
     app_touch_t touch = {0};
     esp_lcd_touch_handle_t tp = NULL;
-#if CONFIG_APP_TOUCH_ENABLE
+#if CONFIG_APP_TOUCH_FT6X36_I2C
     if (app_touch_init(&touch) == ESP_OK) tp = touch.tp;
     else ESP_LOGW(TAG, "Touch init failed; continuing without touch");
 #endif
