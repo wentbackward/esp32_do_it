@@ -1,0 +1,83 @@
+menu "Display + Touch Pins"
+
+
+config LCD_HOST
+# spi = SPI(2,baudrate=SPI_W_SPEED,sck=Pin(LCD_SCK),mosi=Pin(LCD_SDA),miso=Pin(LCD_SDO))
+    int "SPI host (2=SPI2, 3=SPI3)"
+    default 2
+
+config LCD_SCLK_GPIO
+# LCD_SCK = 12
+    int "LCD SCLK GPIO"
+    default 12
+
+config LCD_MOSI_GPIO
+# LCD_SDA = 11
+    int "LCD MOSI GPIO"
+    default 11
+
+config LCD_MISO_GPIO
+# LCD_SDO = 13
+    int "LCD MISO GPIO (optional, -1 if unused)"
+    default 13
+
+config LCD_CS_GPIO
+# LCD_CS = 10
+    int "LCD CS GPIO"
+    default 10
+
+config LCD_DC_GPIO
+    int "LCD DC GPIO"
+    default 46
+    # 2?
+
+config LCD_RST_GPIO
+    int "LCD RST GPIO (-1 if tied to reset)"
+    default -1
+
+config LCD_BKLT_GPIO
+# LCD_BL = 45
+    int "LCD Backlight GPIO (-1 if always on)"
+    default 45
+# LCD_RS = 46
+# #LCD_RST = 27  #connect to ESP32 reset pin
+
+# mylcd = LCD_28_ILI9341(spi, LCD_CS, LCD_RS, LCD_BL)
+# mytouch = FT6336(i2c, TOUCH_RST, width = 240, height = 320)
+
+
+
+config LCD_SPI_CLOCK_HZ
+    int "LCD SPI clock (Hz)"
+    default 40000000
+
+config TOUCH_I2C_PORT
+    int "Touch I2C port (0 or 1)"
+    default 0
+
+config TOUCH_SDA_GPIO
+# I2C_SDA = 16
+    int "Touch SDA GPIO"
+    default 16
+
+config TOUCH_SCL_GPIO
+# I2C_SCL = 15
+    int "Touch SCL GPIO"
+    default 15
+
+config TOUCH_INT_GPIO
+    int "Touch INT GPIO (-1 if unused)"
+    default -1
+    # default 17
+
+config TOUCH_RST_GPIO
+# TOUCH_RST = 18
+    int "Touch RST GPIO (-1 if unused)"
+    default 18
+
+config TOUCH_I2C_CLOCK_HZ
+# i2c = I2C(0,scl=Pin(I2C_SCL),sda=Pin(I2C_SDA),freq=400000)
+    int "Touch I2C clock (Hz)"
+    default 400000
+
+endmenu

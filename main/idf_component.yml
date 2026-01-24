@@ -1,0 +1,9 @@
+dependencies:
+  lvgl/lvgl: "==9.4.0"
+  espressif/esp_lvgl_port: "^2.7.0"
+
+  # FT6336 is in the FT6x36 family; this provides esp_lcd_touch_new_i2c_ft6x36(...)
+  cfscn/esp_lcd_touch_ft6x36: "^1.0.8"
+
+  #LCD Panel
+  espressif/esp_lcd_ili9341: "^2.0.2"
