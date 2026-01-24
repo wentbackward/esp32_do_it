@@ -1,53 +1,209 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 | Linux |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- | ----- |
+# ESP32 + LVGL Template  
+*A production-grade starting point for ESP-IDF & LVGL 9.4 projects*
 
-# Hello World Example
+![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.x-blue)
+![LVGL](https://img.shields.io/badge/LVGL-9.4-purple)
+![Platform](https://img.shields.io/badge/platform-ESP32-green)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Starts a FreeRTOS task to print "Hello World".
+---
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+## What This Is
 
-## How to use example
+This repository is a **GitHub template** designed to get you from  
+**clone → pixels on screen** as quickly and cleanly as possible.
 
-Follow detailed instructions provided specifically for this example.
+It provides a:
+- Known-good ESP-IDF application structure
+- Correct, modern LVGL 9.4 integration
+- Configuration-first workflow using `menuconfig`
+- Hardware-agnostic display & touch abstraction
 
-Select the instructions depending on Espressif chip installed on your development board:
+Use it as the **foundation** for real products, prototypes, or experiments.
 
-- [ESP32 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html)
-- [ESP32-S2 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/get-started/index.html)
+---
 
+## Why Use This Template?
 
-## Example folder contents
+ESP32 + LVGL projects often stall on:
+- Display initialization edge cases
+- Rotation, mirroring, and touch alignment
+- LVGL timing & tick handling
+- ESP-IDF component wiring and Kconfig sprawl
 
-The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
+This template removes those problems **up front**, so you can focus on:
+- UI design
+- Product logic
+- Performance tuning
+- Shipping real hardware
 
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
+---
 
-Below is short explanation of remaining files in the project folder.
+## Quick Start (10 Minutes)
 
+### 1. Create Your Project
+Click **“Use this template”** on GitHub, or clone directly:
+
+```bash
+git clone https://github.com/wentbackward/esp32_do_it.git
+cd esp32_do_it
+````
+
+### 2. Set Up ESP-IDF
+
+Ensure ESP-IDF 5.x is installed and active:
+
+```bash
+idf.py --version
 ```
-├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
-├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
-└── README.md                  This is the file you are currently reading
+
+### 3. Configure the Application
+
+```bash
+idf.py menuconfig
 ```
 
-For more information on structure and contents of ESP-IDF projects, please refer to Section [Build System](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html) of the ESP-IDF Programming Guide.
+Key sections:
 
-## Troubleshooting
+* **Application Configuration**
+* **LVGL Configuration**
+* **Display Configuration**
+* **Touch Configuration (optional)**
 
-* Program upload failure
+### 4. Build & Flash
 
-    * Hardware connection is not correct: run `idf.py -p PORT monitor`, and reboot your board to see if there are any output logs.
-    * The baud rate for downloading is too high: lower your baud rate in the `menuconfig` menu, and try again.
+```bash
+idf.py build flash monitor
+```
 
-## Technical support and feedback
+If your display parameters are correct, you should see LVGL output immediately.
 
-Please use the following feedback channels:
+---
 
-* For technical queries, go to the [esp32.com](https://esp32.com/) forum
-* For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-idf/issues)
+## Project Structure
 
-We will get back to you as soon as possible.
+```text
+.
+├── main/
+│   ├── app_main.c        # Application entry point
+│   ├── app_display.c     # Display + LVGL binding
+│   ├── app_touch.c       # Touch abstraction (optional)
+│   └── app_ui.c          # UI bootstrap (demo or custom)
+│
+├── components/
+│   └── app_lvgl/         # LVGL helpers & glue code
+│
+├── Kconfig.projbuild     # App-level menuconfig options
+├── sdkconfig.defaults   # Sensible defaults
+└── README.md
+```
+
+Each layer has a single responsibility:
+
+* **Hardware setup** is isolated
+* **UI logic** is cleanly separated
+* **Configuration** is explicit and discoverable
+
+---
+
+## Configuration Philosophy
+
+This template is **configuration-driven**.
+
+You should not need to:
+
+* Edit core C files for rotation or mirroring
+* Hard-code display parameters
+* Comment/uncomment logic to test options
+
+Instead, use `menuconfig` to:
+
+* Enable or disable touch
+* Adjust orientation & axis swapping
+* Select LVGL demos
+* Tune memory and buffer sizes
+
+---
+
+## LVGL Demos (Optional)
+
+LVGL’s built-in demos can be enabled via `menuconfig`.
+
+They are useful for:
+
+* Verifying display performance
+* Testing touch accuracy
+* Stress-testing memory and refresh paths
+
+Once validated, disable them and plug in your own UI.
+
+---
+
+## Performance by Design
+
+The template is structured so performance tuning is:
+
+* Incremental
+* Observable
+* Non-disruptive
+
+It supports:
+
+* Double buffering
+* DMA-friendly display flushing
+* Clean LVGL task scheduling
+* Easy instrumentation and logging
+
+You can start simple and optimize later without rewrites.
+
+---
+
+## What You’re Expected to Customize
+
+After creating your own repository from this template, you should:
+
+* Replace or configure the display driver for your panel
+* Adjust resolution and color depth
+* Swap the demo UI for your application UI
+* Rename the project and identifiers
+
+See `app_ui.c` for the intended UI entry point.
+
+---
+
+## What This Template Does *Not* Do
+
+This repository intentionally avoids:
+
+* Board-specific assumptions
+* Opinionated UI frameworks
+* Hidden or “magic” abstractions
+* Vendor lock-in
+
+It gives you a **solid floor**, not a low ceiling.
+
+---
+
+## Who This Is For
+
+* ESP-IDF newcomers who want a reliable start
+* Experienced developers tired of boilerplate
+* Teams building real ESP32 UI products
+* Anyone who values clarity, structure, and maintainability
+
+---
+
+## 📜 License
+
+MIT — use it, fork it, ship it.
+
+---
+
+## Final Note
+
+Embedded UI work is hard enough.
+
+This template exists so you don’t have to earn the right to draw your first pixel.
+
+Happy building. 
+
