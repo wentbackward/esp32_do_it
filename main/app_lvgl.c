@@ -27,9 +27,9 @@ esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
         .monochrome = false,
         .color_format = LV_COLOR_FORMAT_RGB565,
         .rotation = {
-            .swap_xy = CONFIG_APP_ROT_SWAP_XY,
-            .mirror_x = CONFIG_APP_ROT_MIRROR_X,
-            .mirror_y = CONFIG_APP_ROT_MIRROR_Y,
+            .swap_xy  = (CONFIG_APP_ROT_SWAP_XY != 0),
+            .mirror_x = (CONFIG_APP_ROT_MIRROR_X != 0),
+            .mirror_y = (CONFIG_APP_ROT_MIRROR_Y != 0),
         },
         .flags = {
             .buff_dma = true,

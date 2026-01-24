@@ -91,7 +91,7 @@ esp_err_t app_display_init(app_display_t *out)
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(panel), TAG, "panel_reset");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(panel), TAG, "panel_init");
 
-#ifdef CONFIG_APP_LCD_INVERT_COLORS
+#ifdef CONFIG_APP_LCD_INVERT_DEFAULT
     app_display_set_invert(io, true);
 #endif
 
