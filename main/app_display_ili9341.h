@@ -18,6 +18,11 @@ esp_err_t app_display_init(app_display_t *out);
 bool app_display_set_invert(void *ctx, bool on);
 bool app_display_cycle_orientation(void *ctx);
 
+/* Backlight PWM control */
+bool app_display_set_backlight_percent(uint8_t percent);
+esp_err_t app_display_set_backlight_duty(uint32_t duty);
+uint32_t app_display_get_backlight_duty(void);
+
 #ifdef __cplusplus
 }
 #endif

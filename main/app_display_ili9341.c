@@ -5,12 +5,18 @@
 #include "esp_log.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "driver/ledc.h"
 
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_ili9341.h"
 
 static const char *TAG = "app_display";
+
+#ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
+static ledc_channel_t s_bl_ledc_channel = LEDC_CHANNEL_0;
+static uint32_t s_bl_max_duty = 0;
+#endif
 
 static inline spi_host_device_t host_from_kconfig(void)
 {
@@ -96,16 +102,58 @@ esp_err_t app_display_init(app_display_t *out)
 #endif
 
     // Display on
+#ifndef CONFIG_APP_LCD_BL_PWM_ENABLE
     ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
+    // Gradually fade in
+#else
+    for (int i = 0; i <= 100; i += 5) {
+        app_display_set_backlight_percent(i);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }    
+#endif
 
-    // Backlight (simple on/off)
+    // Backlight PWM setup
     if (CONFIG_APP_LCD_PIN_BL >= 0) {
+#ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
+        // Configure LEDC timer
+        ledc_timer_config_t ledc_timer = {
+            .speed_mode       = LEDC_LOW_SPEED_MODE,
+            .duty_resolution  = CONFIG_APP_LCD_BL_PWM_RESOLUTION,
+            .timer_num        = LEDC_TIMER_0,
+            .freq_hz          = CONFIG_APP_LCD_BL_PWM_FREQ_HZ,
+            .clk_cfg          = LEDC_AUTO_CLK
+        };
+        ESP_RETURN_ON_ERROR(ledc_timer_config(&ledc_timer), TAG, "ledc_timer_config");
+
+        // Calculate max duty and initial brightness
+        s_bl_max_duty = (1 << CONFIG_APP_LCD_BL_PWM_RESOLUTION) - 1;
+        uint32_t initial_duty = (s_bl_max_duty * CONFIG_APP_LCD_BL_DEFAULT_DUTY) / 100;
+
+        // Configure LEDC channel with initial duty
+        ledc_channel_config_t ledc_channel = {
+            .gpio_num   = CONFIG_APP_LCD_PIN_BL,
+            .speed_mode = LEDC_LOW_SPEED_MODE,
+            .channel    = s_bl_ledc_channel,
+            .intr_type  = LEDC_INTR_DISABLE,
+            .timer_sel  = LEDC_TIMER_0,
+            .duty       = initial_duty,
+            .hpoint     = 0
+        };
+        ESP_RETURN_ON_ERROR(ledc_channel_config(&ledc_channel), TAG, "ledc_channel_config");
+
+        ESP_LOGI(TAG, "Backlight PWM: %dHz, %d-bit, duty=%"PRIu32"/%"PRIu32" (%d%%)",
+                 CONFIG_APP_LCD_BL_PWM_FREQ_HZ, CONFIG_APP_LCD_BL_PWM_RESOLUTION,
+                 initial_duty, s_bl_max_duty, CONFIG_APP_LCD_BL_DEFAULT_DUTY);
+#else
+        // Simple on/off mode
         gpio_config_t bk = {
             .pin_bit_mask = 1ULL << CONFIG_APP_LCD_PIN_BL,
             .mode = GPIO_MODE_OUTPUT,
         };
         ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
         gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
+        ESP_LOGI(TAG, "Backlight: simple on/off (GPIO %d)", CONFIG_APP_LCD_PIN_BL);
+#endif
     }
 
     out->panel = panel;
@@ -113,3 +161,46 @@ esp_err_t app_display_init(app_display_t *out)
     ESP_LOGI(TAG, "Display init OK (%dx%d, SPI=%d Hz)", CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES, CONFIG_APP_LCD_SPI_CLOCK_HZ);
     return ESP_OK;
 }
+
+#ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
+bool app_display_set_backlight_percent(uint8_t percent)
+{
+    if (percent > 100) percent = 100;
+    uint32_t duty = (s_bl_max_duty * percent) / 100;
+    return app_display_set_backlight_duty(duty) == ESP_OK;
+}
+
+esp_err_t app_display_set_backlight_duty(uint32_t duty)
+{
+    if (duty > s_bl_max_duty) duty = s_bl_max_duty;
+
+    ESP_RETURN_ON_ERROR(ledc_set_duty(LEDC_LOW_SPEED_MODE, s_bl_ledc_channel, duty), TAG, "ledc_set_duty");
+    ESP_RETURN_ON_ERROR(ledc_update_duty(LEDC_LOW_SPEED_MODE, s_bl_ledc_channel), TAG, "ledc_update_duty");
+    ESP_LOGI(TAG, "Backlight duty: %"PRIu32"/%"PRIu32" (%d%%)", duty, s_bl_max_duty, (int)((duty * 100) / s_bl_max_duty));
+    return ESP_OK;
+}
+
+uint32_t app_display_get_backlight_duty(void)
+{
+    return ledc_get_duty(LEDC_LOW_SPEED_MODE, s_bl_ledc_channel);
+}
+
+#else
+
+bool app_display_set_backlight_percent(uint8_t percent)
+{
+    ESP_LOGI(TAG, "PWM backlight not enabled");
+    return false;
+}
+
+esp_err_t app_display_set_backlight_duty(uint32_t duty)
+{
+    ESP_LOGI(TAG, "PWM backlight not enabled");
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+uint32_t app_display_get_backlight_duty(void)
+{
+    return 0;
+}
+#endif

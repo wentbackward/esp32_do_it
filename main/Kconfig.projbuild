@@ -128,6 +128,37 @@ config APP_LCD_PIN_BL
     int "Backlight GPIO (-1 disable)"
     default 45 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 45
+
+config APP_LCD_BL_PWM_ENABLE
+    bool "Enable PWM backlight control"
+    default n
+    help
+        Use LEDC PWM for adjustable brightness instead of simple on/off.
+
+config APP_LCD_BL_PWM_FREQ_HZ
+    int "Backlight PWM frequency (Hz)"
+    depends on APP_LCD_BL_PWM_ENABLE
+    default 5000
+    range 100 40000
+    help
+        PWM frequency for backlight control. 5kHz is a good default.
+
+config APP_LCD_BL_PWM_RESOLUTION
+    int "Backlight PWM resolution (bits)"
+    depends on APP_LCD_BL_PWM_ENABLE
+    default 10
+    range 8 14
+    help
+        PWM resolution in bits. 10 bits = 0-1023 duty cycle range.
+
+config APP_LCD_BL_DEFAULT_DUTY
+    int "Default backlight duty cycle (0-100%)"
+    depends on APP_LCD_BL_PWM_ENABLE
+    default 80
+    range 0 100
+    help
+        Initial backlight brightness as percentage (0=off, 100=full).
+
 endmenu
 
 #

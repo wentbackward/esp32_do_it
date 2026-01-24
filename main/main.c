@@ -91,7 +91,11 @@ void app_main(void)
         .vres = CONFIG_APP_LCD_VRES,
         .set_invert = app_display_set_invert,
         .cycle_orientation = app_display_cycle_orientation,
+    #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
+        .set_backlight = app_display_set_backlight_percent,
+    #else
         .set_backlight = NULL,
+    #endif
         .ctx = (void*)disp_hw.io,
     };
 
