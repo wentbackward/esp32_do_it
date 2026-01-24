@@ -62,7 +62,7 @@ esp_err_t app_display_init(app_display_t *out)
     const spi_bus_config_t bus_config = ILI9341_PANEL_BUS_SPI_CONFIG(
         CONFIG_APP_LCD_PIN_SCK,
         CONFIG_APP_LCD_PIN_MOSI,
-        CONFIG_APP_LCD_HRES * 80 * sizeof(uint16_t)
+        CONFIG_APP_LCD_HRES * CONFIG_APP_LVGL_BUF_LINES * sizeof(uint16_t)
     );
     ESP_RETURN_ON_ERROR(spi_bus_initialize(host, &bus_config, SPI_DMA_CH_AUTO), TAG, "spi_bus_initialize");
 
@@ -101,17 +101,6 @@ esp_err_t app_display_init(app_display_t *out)
     app_display_set_invert(io, true);
 #endif
 
-    // Display on
-#ifndef CONFIG_APP_LCD_BL_PWM_ENABLE
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
-    // Gradually fade in
-#else
-    for (int i = 0; i <= 100; i += 5) {
-        app_display_set_backlight_percent(i);
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }    
-#endif
-
     // Backlight PWM setup
     if (CONFIG_APP_LCD_PIN_BL >= 0) {
 #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
@@ -141,17 +130,22 @@ esp_err_t app_display_init(app_display_t *out)
         };
         ESP_RETURN_ON_ERROR(ledc_channel_config(&ledc_channel), TAG, "ledc_channel_config");
 
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
+        app_display_set_backlight_percent(CONFIG_APP_LCD_BL_DEFAULT_DUTY);
+
         ESP_LOGI(TAG, "Backlight PWM: %dHz, %d-bit, duty=%"PRIu32"/%"PRIu32" (%d%%)",
                  CONFIG_APP_LCD_BL_PWM_FREQ_HZ, CONFIG_APP_LCD_BL_PWM_RESOLUTION,
                  initial_duty, s_bl_max_duty, CONFIG_APP_LCD_BL_DEFAULT_DUTY);
 #else
         // Simple on/off mode
-        gpio_config_t bk = {
-            .pin_bit_mask = 1ULL << CONFIG_APP_LCD_PIN_BL,
-            .mode = GPIO_MODE_OUTPUT,
-        };
-        ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
-        gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
+        // gpio_config_t bk = {
+        //     .pin_bit_mask = 1ULL << CONFIG_APP_LCD_PIN_BL,
+        //     .mode = GPIO_MODE_OUTPUT,
+        // };
+        // ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
+        // gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
+
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
         ESP_LOGI(TAG, "Backlight: simple on/off (GPIO %d)", CONFIG_APP_LCD_PIN_BL);
 #endif
     }
