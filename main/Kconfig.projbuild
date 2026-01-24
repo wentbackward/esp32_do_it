@@ -1,83 +1,118 @@
-menu "Display + Touch Pins"
+menu "App: LVGL Display Template"
 
+choice APP_UI_MODE
+    prompt "UI mode"
+    default APP_UI_SIMPLE
+    help
+        Select which UI to start at boot.
+config APP_UI_SIMPLE
+    bool "Simple UI (bars + button)"
+config APP_UI_HWTEST
+    bool "Hardware test UI"
+config APP_UI_DEMO
+    bool "LVGL demo widgets (if enabled in LVGL)"
+endchoice
 
-config LCD_HOST
-# spi = SPI(2,baudrate=SPI_W_SPEED,sck=Pin(LCD_SCK),mosi=Pin(LCD_SDA),miso=Pin(LCD_SDO))
-    int "SPI host (2=SPI2, 3=SPI3)"
+menu "Display (SPI ILI9341)"
+config APP_LCD_HRES
+    int "Horizontal resolution"
+    default 240
+config APP_LCD_VRES
+    int "Vertical resolution"
+    default 320
+
+config APP_LCD_SPI_HOST
+    int "SPI host id (2 = SPI2_HOST, 3 = SPI3_HOST)"
+    range 2 3
     default 2
 
-config LCD_SCLK_GPIO
-# LCD_SCK = 12
-    int "LCD SCLK GPIO"
-    default 12
-
-config LCD_MOSI_GPIO
-# LCD_SDA = 11
-    int "LCD MOSI GPIO"
-    default 11
-
-config LCD_MISO_GPIO
-# LCD_SDO = 13
-    int "LCD MISO GPIO (optional, -1 if unused)"
-    default 13
-
-config LCD_CS_GPIO
-# LCD_CS = 10
+config APP_LCD_PIN_DC
+    int "LCD D/C (RS) GPIO"
+    default 46
+config APP_LCD_PIN_CS
     int "LCD CS GPIO"
     default 10
-
-config LCD_DC_GPIO
-    int "LCD DC GPIO"
-    default 46
-    # 2?
-
-config LCD_RST_GPIO
-    int "LCD RST GPIO (-1 if tied to reset)"
+config APP_LCD_PIN_SCK
+    int "LCD SCK GPIO"
+    default 12
+config APP_LCD_PIN_MOSI
+    int "LCD MOSI GPIO"
+    default 11
+config APP_LCD_PIN_MISO
+    int "LCD MISO GPIO"
+    default 13
+config APP_LCD_PIN_RST
+    int "LCD RST GPIO (-1 if tied to ESP reset)"
     default -1
-
-config LCD_BKLT_GPIO
-# LCD_BL = 45
-    int "LCD Backlight GPIO (-1 if always on)"
+config APP_LCD_PIN_BL
+    int "LCD backlight GPIO (-1 to disable)"
     default 45
-# LCD_RS = 46
-# #LCD_RST = 27  #connect to ESP32 reset pin
 
-# mylcd = LCD_28_ILI9341(spi, LCD_CS, LCD_RS, LCD_BL)
-# mytouch = FT6336(i2c, TOUCH_RST, width = 240, height = 320)
-
-
-
-config LCD_SPI_CLOCK_HZ
+config APP_LCD_SPI_CLOCK_HZ
     int "LCD SPI clock (Hz)"
-    default 40000000
+    default 26000000
 
-config TOUCH_I2C_PORT
-    int "Touch I2C port (0 or 1)"
+config APP_LCD_BGR
+    bool "Use BGR element order"
+    default y
+
+config APP_LCD_SWAP_BYTES
+    bool "Swap bytes in LVGL flush (RGB565 endianness)"
+    default y
+    
+config APP_LCD_INVERT_COLORS
+    bool "Invert colors"
+    default y
+
+menu "LVGL display rotation flags (port-level)"
+config APP_ROT_SWAP_XY
+    int "swap_xy"
+    range 0 1
     default 0
+config APP_ROT_MIRROR_X
+    int "mirror_x"
+    range 0 1
+    default 1
+config APP_ROT_MIRROR_Y
+    int "mirror_y"
+    range 0 1
+    default 0
+endmenu
 
-config TOUCH_SDA_GPIO
-# I2C_SDA = 16
-    int "Touch SDA GPIO"
-    default 16
+endmenu  # Display
 
-config TOUCH_SCL_GPIO
-# I2C_SCL = 15
-    int "Touch SCL GPIO"
+menu "Touch (FT6x36/FT6336 over I2C)"
+config APP_TOUCH_ENABLE
+    bool "Enable touch"
+    default y
+
+config APP_TOUCH_I2C_PORT
+    int "I2C port (0/1)"
+    range 0 1
+    default 0
+config APP_TOUCH_PIN_SCL
+    int "Touch I2C SCL GPIO"
     default 15
-
-config TOUCH_INT_GPIO
-    int "Touch INT GPIO (-1 if unused)"
-    default -1
-    # default 17
-
-config TOUCH_RST_GPIO
-# TOUCH_RST = 18
-    int "Touch RST GPIO (-1 if unused)"
+config APP_TOUCH_PIN_SDA
+    int "Touch I2C SDA GPIO"
+    default 16
+config APP_TOUCH_PIN_RST
+    int "Touch RST GPIO (-1 to disable reset)"
     default 18
-
-config TOUCH_I2C_CLOCK_HZ
-# i2c = I2C(0,scl=Pin(I2C_SCL),sda=Pin(I2C_SDA),freq=400000)
+config APP_TOUCH_I2C_CLOCK_HZ
     int "Touch I2C clock (Hz)"
     default 400000
+
+config APP_TOUCH_I2C_ADDR
+    hex "Touch I2C address"
+    default 0x38
+
+config APP_TOUCH_RESET_PULSE_MS
+    int "Manual reset low pulse (ms)"
+    default 20
+config APP_TOUCH_RESET_BOOT_MS
+    int "Boot delay after reset (ms)"
+    default 250
+endmenu
 
 endmenu
