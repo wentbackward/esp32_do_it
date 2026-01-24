@@ -126,13 +126,13 @@ static void grid_build(lv_obj_t *scr, int step_minor, int step_major)
         mk_line(scr,
                 (lv_point_precise_t){ x, 0 },
                 (lv_point_precise_t){ x, H },
-                0x202020, LV_OPA_50);
+                0x909090, LV_OPA_50);
     }
     for (int32_t y = 0; y <= H; y += step_minor) {
         mk_line(scr,
                 (lv_point_precise_t){ 0, y },
                 (lv_point_precise_t){ W, y },
-                0x202020, LV_OPA_50);
+                0x909090, LV_OPA_50);
     }
 
     // Major
@@ -140,13 +140,13 @@ static void grid_build(lv_obj_t *scr, int step_minor, int step_major)
         mk_line(scr,
                 (lv_point_precise_t){ x, 0 },
                 (lv_point_precise_t){ x, H },
-                0x505050, LV_OPA_70);
+                0x000000, LV_OPA_70);
     }
     for (int32_t y = 0; y <= H; y += step_major) {
         mk_line(scr,
                 (lv_point_precise_t){ 0, y },
                 (lv_point_precise_t){ W, y },
-                0x505050, LV_OPA_70);
+                0x000000, LV_OPA_70);
     }
 }
 
@@ -227,7 +227,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
 
     lv_obj_t *scr = lv_screen_active();
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0xEEEEEE), 0);
 
     int W = (int)lv_obj_get_width(scr);
     int H = (int)lv_obj_get_height(scr);
