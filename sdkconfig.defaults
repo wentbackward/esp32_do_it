@@ -1,6 +1,7 @@
 # App defaults
 CONFIG_APP_UI_HWTEST=y
 
+
 # LVGL demos (optional)
 # CONFIG_APP_UI_DEMO=y
 # CONFIG_LV_USE_DEMO_WIDGETS=y

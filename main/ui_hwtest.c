@@ -216,7 +216,7 @@ static void bl_slider_cb(lv_event_t *e)
     }
 
     if (s_cfg.set_backlight) {
-        (void)s_cfg.set_backlight(s_cfg.ctx, s_bl_pct);
+        (void)s_cfg.set_backlight(s_bl_pct);
     }
 }
 

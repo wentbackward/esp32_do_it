@@ -16,7 +16,7 @@ typedef struct {
     // Optional hooks (set to NULL if not supported)
     bool (*set_invert)(void *ctx, bool on);
     bool (*cycle_orientation)(void *ctx);
-    bool (*set_backlight)(void *ctx, uint8_t pct);
+    bool (*set_backlight)(uint8_t pct);
 
     void *ctx; // passed back to hooks
 } hwtest_cfg_t;
