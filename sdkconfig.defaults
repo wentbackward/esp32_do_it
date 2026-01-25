@@ -1,16 +1,8 @@
 # Common settings for all boards
 
 # UI mode - default to hardware test for board bringup
-CONFIG_APP_UI_HW_DISPLAY_TEST=y
+CONFIG_APP_UI_HWTEST=y
 
-# LVGL port tuning
 CONFIG_APP_LVGL_DOUBLE_BUFFER=y
 CONFIG_APP_LVGL_BUFF_DMA=y
-
-# Display common
 CONFIG_APP_LCD_COLOR_DEPTH=16
-
-# Other common settings
-CONFIG_FREERTOS_HZ=1000
-CONFIG_LV_TXT_BREAK_CHARS=" ,.;:-_"                                                   
-CONFIG_ESP_SYSTEM_PANIC_REBOOT_DELAY_SECONDS=5

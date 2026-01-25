@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include "esp_log.h"
+
+
 static hwtest_cfg_t s_cfg;
 
 static lv_obj_t *s_touch_dot;
@@ -24,6 +27,8 @@ static uint8_t s_bl_pct = 100;
 
 static int s_bar_x = 0;
 static int s_bar_dir = 1;
+
+static const char *TAG = "ui_hwtest.c";
 
 /* ---------------- Touch overlay ---------------- */
 static void touch_layer_cb(lv_event_t *e)
@@ -87,27 +92,29 @@ static void anim_timer_cb(lv_timer_t *t)
 }
 
 /* ---------------- Grid line helpers (LVGL 9 safe) ---------------- */
-/* Each lv_line stores a pointer to points, so each line needs its own point array. */
-static void free_points_on_delete(lv_event_t *e)
-{
-    if (lv_event_get_code(e) != LV_EVENT_DELETE) return;
-    void *ud = lv_obj_get_user_data(lv_event_get_target(e));
-    if (ud) lv_free(ud);
-}
+/* Use a single static array for all grid points to avoid fragmentation */
+#define MAX_GRID_POINTS 400  // Supports up to 200 lines (each line = 2 points)
+static lv_point_precise_t s_grid_points[MAX_GRID_POINTS];
+static int s_point_idx = 0;
 
 static lv_obj_t *mk_line(lv_obj_t *parent,
                          lv_point_precise_t p0, lv_point_precise_t p1,
                          uint32_t color_hex, lv_opa_t opa)
 {
+    if (s_point_idx + 2 > MAX_GRID_POINTS) {
+        ESP_LOGW(TAG, "Grid point array full, skipping line");
+        return NULL;
+    }
+
     lv_obj_t *l = lv_line_create(parent);
 
-    lv_point_precise_t *pts = (lv_point_precise_t *)lv_malloc(sizeof(lv_point_precise_t) * 2);
-    pts[0] = p0;
-    pts[1] = p1;
+    // Store points in static array
+    s_grid_points[s_point_idx] = p0;
+    s_grid_points[s_point_idx + 1] = p1;
 
-    lv_line_set_points(l, pts, 2);
-    lv_obj_set_user_data(l, pts);
-    lv_obj_add_event_cb(l, free_points_on_delete, LV_EVENT_DELETE, NULL);
+    // Line references into the static array
+    lv_line_set_points(l, &s_grid_points[s_point_idx], 2);
+    s_point_idx += 2;
 
     lv_obj_set_style_line_width(l, 1, 0);
     lv_obj_set_style_line_color(l, lv_color_hex(color_hex), 0);
@@ -121,7 +128,9 @@ static void grid_build(lv_obj_t *scr, int step_minor, int step_major)
     int32_t W = lv_obj_get_width(scr);
     int32_t H = lv_obj_get_height(scr);
 
-    // Minor
+    s_point_idx = 0;  // Reset point index
+
+    // Minor grid lines
     for (int32_t x = 0; x <= W; x += step_minor) {
         mk_line(scr,
                 (lv_point_precise_t){ x, 0 },
@@ -135,7 +144,7 @@ static void grid_build(lv_obj_t *scr, int step_minor, int step_major)
                 0x909090, LV_OPA_50);
     }
 
-    // Major
+    // Major grid lines
     for (int32_t x = 0; x <= W; x += step_major) {
         mk_line(scr,
                 (lv_point_precise_t){ x, 0 },
@@ -148,6 +157,8 @@ static void grid_build(lv_obj_t *scr, int step_minor, int step_major)
                 (lv_point_precise_t){ W, y },
                 0x000000, LV_OPA_70);
     }
+
+    ESP_LOGI(TAG, "Grid built: %d points used (max %d)", s_point_idx, MAX_GRID_POINTS);
 }
 
 /* ---------------- UI widgets ---------------- */
@@ -233,9 +244,10 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     int H = (int)lv_obj_get_height(scr);
 
     // Background grid (lightweight)
+    ESP_LOGI(TAG, "Build gridlines");
     grid_build(scr, 10, 50);
 
-    // Title
+    ESP_LOGI(TAG, "Add title and status line");
     lv_obj_t *title = lv_label_create(scr);
     lv_label_set_text(title, "HW Bring-up Toolkit");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
@@ -246,12 +258,13 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     lv_obj_align(s_status_label, LV_ALIGN_TOP_MID, 0, 22);
 
     // Corner markers
+    ESP_LOGI(TAG, "Create the corner markers");
     lv_obj_t *box_tl = mk_box(scr, 44, 24, 0x202020, "TL"); lv_obj_align(box_tl, LV_ALIGN_TOP_LEFT, 2, 2);
     lv_obj_t *box_tr = mk_box(scr, 44, 24, 0x202020, "TR"); lv_obj_align(box_tr, LV_ALIGN_TOP_RIGHT, -2, 2);
     lv_obj_t *box_bl = mk_box(scr, 44, 24, 0x202020, "BL"); lv_obj_align(box_bl, LV_ALIGN_BOTTOM_LEFT, 2, -2);
     lv_obj_t *box_br = mk_box(scr, 44, 24, 0x202020, "BR"); lv_obj_align(box_br, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
 
-    // Swatches container
+    ESP_LOGI(TAG, "Create the color swatches");
     lv_obj_t *sw = lv_obj_create(scr);
     lv_obj_set_size(sw, (lv_coord_t)(W - 8), 72);
     lv_obj_align(sw, LV_ALIGN_BOTTOM_MID, 0, -4);
@@ -281,7 +294,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     lv_label_set_text(s_touch_label, "Touch: x=? y=?");
     lv_obj_align(s_touch_label, LV_ALIGN_BOTTOM_LEFT, 6, -82);
 
-    // Touch dot
+    ESP_LOGI(TAG, "Create the touch dot");
     s_touch_dot = lv_obj_create(scr);
     lv_obj_set_size(s_touch_dot, 12, 12);
     lv_obj_set_style_radius(s_touch_dot, LV_RADIUS_CIRCLE, 0);
@@ -291,7 +304,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     lv_obj_clear_flag(s_touch_dot, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_pos(s_touch_dot, (lv_coord_t)(W / 2), (lv_coord_t)(H / 2));
 
-    // Full-screen transparent touch receiver
+    ESP_LOGI(TAG, "Full-screen transparent touch receiver");
     lv_obj_t *touch_layer = lv_obj_create(scr);
     lv_obj_set_size(touch_layer, (lv_coord_t)W, (lv_coord_t)H);
     lv_obj_align(touch_layer, LV_ALIGN_CENTER, 0, 0);
@@ -300,7 +313,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     lv_obj_clear_flag(touch_layer, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(touch_layer, touch_layer_cb, LV_EVENT_ALL, NULL);
 
-    // Moving translucent bar (tearing/flicker)
+    ESP_LOGI(TAG, "Moving translucent bar (tearing/flicker)");
     s_anim_bar = lv_obj_create(scr);
     lv_obj_set_size(s_anim_bar, 16, (lv_coord_t)(H - 72 - 34));
     lv_obj_align(s_anim_bar, LV_ALIGN_TOP_LEFT, 0, 34);
@@ -311,36 +324,54 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     s_bar_x = 0;
     s_bar_dir = 1;
 
-    // Controls (top-right)
-    lv_obj_t *btn_inv = lv_button_create(scr);
-    lv_obj_set_size(btn_inv, 120, 32);
-    lv_obj_align(btn_inv, LV_ALIGN_TOP_RIGHT, -6, 52);
-    lv_obj_add_event_cb(btn_inv, invert_btn_cb, LV_EVENT_CLICKED, NULL);
-    s_inv_btn_label = lv_label_create(btn_inv);
-    lv_label_set_text(s_inv_btn_label, s_cfg.set_invert ? "Invert: toggle" : "Invert: n/a");
-    lv_obj_center(s_inv_btn_label);
+    // Controls (top-right) - only create if hardware supports them
+    int y_pos = 52;
 
-    lv_obj_t *btn_or = lv_button_create(scr);
-    lv_obj_set_size(btn_or, 120, 32);
-    lv_obj_align(btn_or, LV_ALIGN_TOP_RIGHT, -6, 88);
-    lv_obj_add_event_cb(btn_or, orient_btn_cb, LV_EVENT_CLICKED, NULL);
-    s_orient_btn_label = lv_label_create(btn_or);
-    lv_label_set_text(s_orient_btn_label, s_cfg.cycle_orientation ? "Orient: cycle" : "Orient: n/a");
-    lv_obj_center(s_orient_btn_label);
+    // Invert button (only for displays that support it)
+    if (s_cfg.set_invert) {
+        ESP_LOGI(TAG, "Add Invert button");
+        lv_obj_t *btn_inv = lv_button_create(scr);
+        lv_obj_set_size(btn_inv, 120, 32);
+        lv_obj_align(btn_inv, LV_ALIGN_TOP_RIGHT, -6, y_pos);
+        lv_obj_add_event_cb(btn_inv, invert_btn_cb, LV_EVENT_CLICKED, NULL);
+        s_inv_btn_label = lv_label_create(btn_inv);
+        lv_label_set_text(s_inv_btn_label, "Invert: toggle");
+        lv_obj_center(s_inv_btn_label);
+        y_pos += 36;
+    }
 
-    // Backlight slider (optional)
-    lv_obj_t *bl_slider = lv_slider_create(scr);
-    lv_obj_set_size(bl_slider, 120, 12);
-    lv_obj_align(bl_slider, LV_ALIGN_TOP_RIGHT, -6, 132);
-    lv_slider_set_range(bl_slider, 0, 100);
-    lv_slider_set_value(bl_slider, 100, LV_ANIM_OFF);
-    lv_obj_add_event_cb(bl_slider, bl_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    // Orientation button (only for displays that support it)
+    if (s_cfg.cycle_orientation) {
+        ESP_LOGI(TAG, "Add cycle orientation button");
+        lv_obj_t *btn_or = lv_button_create(scr);
+        lv_obj_set_size(btn_or, 120, 32);
+        lv_obj_align(btn_or, LV_ALIGN_TOP_RIGHT, -6, y_pos);
+        lv_obj_add_event_cb(btn_or, orient_btn_cb, LV_EVENT_CLICKED, NULL);
+        s_orient_btn_label = lv_label_create(btn_or);
+        lv_label_set_text(s_orient_btn_label, "Orient: cycle");
+        lv_obj_center(s_orient_btn_label);
+        y_pos += 36;
+    }
 
-    s_bl_slider_label = lv_label_create(scr);
-    lv_label_set_text(s_bl_slider_label, s_cfg.set_backlight ? "BL: 100%" : "BL: n/a");
-    lv_obj_align(s_bl_slider_label, LV_ALIGN_TOP_RIGHT, -6, 144);
+    // Backlight slider (only if hardware supports it)
+    if (s_cfg.set_backlight) {
+        ESP_LOGI(TAG, "Add backlight (brightness) slider");
+        y_pos += 8; // Extra spacing before slider
+        lv_obj_t *bl_slider = lv_slider_create(scr);
+        lv_obj_set_size(bl_slider, 120, 12);
+        lv_obj_align(bl_slider, LV_ALIGN_TOP_RIGHT, -6, y_pos);
+        lv_slider_set_range(bl_slider, 0, 100);
+        lv_slider_set_value(bl_slider, 100, LV_ANIM_OFF);
+        lv_obj_add_event_cb(bl_slider, bl_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+        s_bl_slider_label = lv_label_create(scr);
+        lv_label_set_text(s_bl_slider_label, "BL: 100%");
+        lv_obj_align(s_bl_slider_label, LV_ALIGN_TOP_RIGHT, -6, y_pos + 12);
+    }
 
     // Timers
+    ESP_LOGI(TAG, "Set Timers for animation");
     s_anim_timer = lv_timer_create(anim_timer_cb, 30, NULL);
     s_fps_timer  = lv_timer_create(fps_timer_cb, 1000, NULL);
+    ESP_LOGI(TAG, "Init complete");
 }

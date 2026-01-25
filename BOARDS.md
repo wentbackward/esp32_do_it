@@ -48,11 +48,20 @@ Navigate to "App: Display + Touch + LVGL Template" and manually configure your h
 
 ## Switching Boards
 
-When switching between boards, clean the build first:
+When switching between boards, you MUST delete `sdkconfig`:
+
 ```bash
+# CRITICAL: Delete sdkconfig (fullclean does NOT delete it!)
+rm sdkconfig  # or del sdkconfig on Windows
+
+# Clean build artifacts
 idf.py fullclean
+
+# Reconfigure with new board defaults
 idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3_rgb" reconfigure build
 ```
+
+**Why?** `idf.py fullclean` cleans build artifacts but preserves `sdkconfig`. When `sdkconfig` exists, it takes precedence over `sdkconfig.defaults`, so your board defaults won't be applied. You must manually delete `sdkconfig` to force ESP-IDF to regenerate it from the board defaults.
 
 ## Adding a New Board
 

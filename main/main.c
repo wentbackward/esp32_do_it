@@ -114,32 +114,51 @@ void app_main(void)
         .title = "HW Test (generic)",
         .hres = CONFIG_APP_LCD_HRES,
         .vres = CONFIG_APP_LCD_VRES,
+    #if CONFIG_APP_DISPLAY_ILI9341_SPI
+        // SPI displays support invert and orientation via panel commands
         .set_invert = app_display_set_invert,
         .cycle_orientation = app_display_cycle_orientation,
+        .ctx = (void*)disp_hw.io,
+    #elif CONFIG_APP_DISPLAY_RGB_PARALLEL
+        // RGB displays don't support these features
+        .set_invert = NULL,
+        .cycle_orientation = NULL,
+        .ctx = NULL,
+    #else
+        // Unknown display type - disable features to be safe
+        .set_invert = NULL,
+        .cycle_orientation = NULL,
+        .ctx = NULL,
+    #endif
     #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
         .set_backlight = app_display_set_backlight_percent,
     #else
         .set_backlight = NULL,
     #endif
-        .ctx = (void*)disp_hw.io,
     };
 
     lvgl_port_lock(0);
 #if CONFIG_APP_UI_SIMPLE
+    ESP_LOGI(TAG, "Running Simple UI (LVGL)");
     ui_simple_start();
 #elif CONFIG_APP_UI_DEMO
     #if LV_USE_DEMO_WIDGETS
+        ESP_LOGI(TAG, "Running LVGL Demo Widgets");
         lv_demo_widgets();
     #elif LV_USE_DEMO_BENCHMARK
+        ESP_LOGI(TAG, "Running LVGL Benchmark");
         lv_demo_benchmark();
     #elif LV_USE_DEMO_MUSIC
+        ESP_LOGI(TAG, "Running LVGL Music Demo");
         lv_demo_music();
     #else
+        ESP_LOGI(TAG, "No LVGL demos enabled. Turn on LV_USE_DEMO_* in menuconfig.");
         lv_obj_t *l = lv_label_create(lv_screen_active());
         lv_label_set_text(l, "No LVGL demos enabled. Turn on LV_USE_DEMO_* in menuconfig.");
         lv_obj_center(l);
     #endif
 #elif CONFIG_APP_UI_HWTEST
+    ESP_LOGI(TAG, "Running UI HWTEST");
     ui_hwtest_init(&hwcfg);
 #endif
     lvgl_port_unlock();

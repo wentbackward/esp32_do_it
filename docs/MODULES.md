@@ -9,12 +9,16 @@
 - Flash: 
 - Tested with: ESP-IDF v 5.5.2, LVGL 9.4
 - Key configuration notes: 
-## ELECROW CrowPanel-ESP32 5", 800 x 400, Basic edition
+## ELECROW CrowPanel-ESP32 5", 800 x 480, Basic edition
 - SKU: DIS07050H-1
-- SoC:  ESP32-S3-WROOM-1-N4R8 
-- Display: ILI6122
-- Touch:  ILI5960
-- Memory:
-- Flash: 
-- Tested with: TBD
+- Board Version: V3.0
+- SoC: ESP32-S3-WROOM-1-N4R8
+- Display: 800x480 RGB parallel panel (ILI6122 controller)
+- Touch: GT911 capacitive touch (I2C)
+- Memory: 8 MB PSRAM (octal mode)
+- Flash: 4 MB
+- Backlight: GPIO 2 (TFT_BL) - PWM controlled
+- Special GPIOs: GPIO 38 (control signal, must be LOW)
+- Tested with: ESP-IDF v5.5.2, LVGL 9.4
 - Wiki / Data sheets: https://www.elecrow.com/wiki/esp32-display-502727-intelligent-touch-screen-wi-fi26ble-800480-hmi-display.html
+- Key configuration: Uses C library malloc for LVGL (dynamic PSRAM allocation)

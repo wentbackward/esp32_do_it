@@ -36,19 +36,9 @@ esp_err_t app_display_init(app_display_t *out)
     ESP_RETURN_ON_FALSE(out, ESP_ERR_INVALID_ARG, TAG, "null out");
 
     // Elecrow ESP32-S3 5" board specific GPIO setup
-    // GPIO 2: Display power/backlight enable
-    gpio_config_t pwr_cfg = {
-        .pin_bit_mask = (1ULL << 2),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    ESP_RETURN_ON_ERROR(gpio_config(&pwr_cfg), TAG, "gpio_config GPIO2");
-    gpio_set_level(2, 1);  // HIGH to enable
-    ESP_LOGI(TAG, "GPIO 2 (display power) set HIGH");
+    // Note: GPIO 2 (TFT_BL backlight) is configured by PWM backlight code below
 
-    // GPIO 38: Control signal (purpose unclear, but required)
+    // GPIO 38: Control signal (purpose unclear, but required for Elecrow board)
     gpio_config_t ctrl_cfg = {
         .pin_bit_mask = (1ULL << 38),
         .mode = GPIO_MODE_OUTPUT,

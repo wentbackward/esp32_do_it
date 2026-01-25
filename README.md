@@ -39,6 +39,26 @@ This template removes those problems **up front**, so you can focus on:
 
 ---
 
+## Philosophy: Configuration Over Abstraction
+
+This project takes a different path than Arduino or PlatformIO.
+
+**The Problem with Universal Platforms:**
+Platforms like Arduino and PlatformIO try to accommodate all boards, creating abstraction layers that eventually become obstacles when you need to customize, optimize, or upgrade.
+
+**Why ESP-IDF Direct:**
+- **Modern Versions**: Most ESP32 examples online use outdated dependencies. LVGL is stuck on v8 in most platforms; this project uses **v9.4+** and can quickly adopt new versions.
+- **Rapid Upgrades**: When ESP-IDF 6 exits beta, we upgrade immediately—no waiting for platform maintainers. New hardware accelerations and optimizations arrive faster.
+- **Board-Specific Reality**: ESP32 board availability and peripheral combinations are increasingly diverse. Boards change between iterations. Instead of fighting abstractions, we use **Kconfig** to embrace board knowledge upfront.
+- **No Delayed Friction**: In embedded development, you *will* need to understand your hardware. This project acknowledges that from day one, reducing friction rather than deferring it.
+
+**Compatibility Without Constraint:**
+You can still use Arduino or PlatformIO if needed, but this project doesn't let their limitations constrain your foundation.
+
+This approach keeps the latest ESP-IDF, LVGL, and hardware changes accessible without platform bloat.
+
+---
+
 ## Quick Start (10 Minutes)
 
 ### 1. Create Your Project
