@@ -12,7 +12,8 @@ esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
                                 esp_lcd_touch_handle_t tp_or_null,
                                 app_lvgl_handles_t *out)
 {
-    ESP_RETURN_ON_FALSE(panel && io && out, ESP_ERR_INVALID_ARG, TAG, "bad args");
+    // Note: io can be NULL for RGB panels
+    ESP_RETURN_ON_FALSE(panel && out, ESP_ERR_INVALID_ARG, TAG, "bad args");
 
     const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "lvgl_port_init");
@@ -20,8 +21,8 @@ esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
     const lvgl_port_display_cfg_t disp_cfg = {
         .io_handle = io,
         .panel_handle = panel,
-        .buffer_size = CONFIG_APP_LCD_HRES * 60,
-        .double_buffer = true,
+        .buffer_size = CONFIG_APP_LCD_HRES * CONFIG_APP_LVGL_BUF_LINES,
+        .double_buffer = CONFIG_APP_LVGL_DOUBLE_BUFFER,
         .hres = CONFIG_APP_LCD_HRES,
         .vres = CONFIG_APP_LCD_VRES,
         .monochrome = false,
@@ -32,8 +33,16 @@ esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
             .mirror_y = (CONFIG_APP_ROT_MIRROR_Y != 0),
         },
         .flags = {
-            .buff_dma = true,
+#ifdef CONFIG_APP_LVGL_BUFF_DMA
+            .buff_dma = CONFIG_APP_LVGL_BUFF_DMA,
+#else
+            .buff_dma = false,
+#endif
+#ifdef CONFIG_APP_LCD_SWAP_BYTES
             .swap_bytes = CONFIG_APP_LCD_SWAP_BYTES,
+#else
+            .swap_bytes = false,
+#endif
         },
     };
 

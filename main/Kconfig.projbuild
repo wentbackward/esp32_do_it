@@ -1,23 +1,6 @@
 menu "App: Display + Touch + LVGL Template"
 
 #
-# Board profile selector (lets you pre-bake known-good defaults)
-#
-choice APP_BOARD_PROFILE
-    prompt "Board profile"
-    default APP_BOARD_ESP32S3_ILI9341_FT6X36
-    help
-        Select a board profile to apply sane defaults. You can still override pins/clocks below.
-
-config APP_BOARD_ESP32S3_ILI9341_FT6X36
-    bool "ESP32-S3 + SPI ILI9341 + I2C FT6x36/FT6336"
-
-config APP_BOARD_ESP32P4_FUTURE_RGB_TOUCH
-    bool "ESP32-P4 (future) + RGB/MIPI panel + touch (placeholder)"
-
-endchoice
-
-#
 # UI selection
 #
 choice APP_UI_MODE
@@ -34,34 +17,29 @@ config APP_UI_DEMO
     bool "LVGL demo widgets (requires LVGL demos enabled)"
 endchoice
 
-#
-# Display HAL selection (today: SPI ILI9341; later: RGB/MIPI)
-#
 choice APP_DISPLAY_DRIVER
     prompt "Display driver"
     default APP_DISPLAY_ILI9341_SPI
     help
-        Select the display backend. For ESP32-P4 you will likely use RGB/MIPI.
+        Select the display backend.
 
 config APP_DISPLAY_ILI9341_SPI
-    bool "ILI9341 over SPI (esp_lcd_ili9341)"
+    bool "ILI9341 over SPI"
 
-config APP_DISPLAY_RGB_PARALLEL_PLACEHOLDER
-    bool "RGB parallel (placeholder for ESP32-P4)"
+config APP_DISPLAY_RGB_PARALLEL
+    bool "RGB parallel 16-bit"
 
 config APP_DISPLAY_MIPI_DSI_PLACEHOLDER
-    bool "MIPI DSI (placeholder for ESP32-P4)"
+    bool "MIPI DSI (placeholder)"
 
 endchoice
 
 menu "Display common"
 config APP_LCD_HRES
     int "Horizontal resolution"
-    default 240 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 240
 config APP_LCD_VRES
     int "Vertical resolution"
-    default 320 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 320
 
 config APP_LCD_COLOR_DEPTH
@@ -73,60 +51,18 @@ config APP_LCD_COLOR_DEPTH
 
 config APP_LCD_BGR
     bool "Use BGR element order"
-    default y if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default y
 
 config APP_LCD_INVERT_DEFAULT
     bool "Send invert command at init (ILI9341: 0x21)"
-    default y if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default n
 
 config APP_LCD_SWAP_BYTES
     bool "Swap bytes in LVGL flush (RGB565 endianness)"
-    default y if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default y
-endmenu
 
-menu "Display: SPI (for ILI9341)"
-depends on APP_DISPLAY_ILI9341_SPI
-
-config APP_LCD_SPI_HOST
-    int "SPI host id (2=SPI2_HOST, 3=SPI3_HOST)"
-    range 2 3
-    default 2
-
-config APP_LCD_SPI_CLOCK_HZ
-    int "SPI clock (Hz)"
-    default 26000000 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 26000000
-
-config APP_LCD_PIN_DC
-    int "LCD D/C GPIO"
-    default 46 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 46
-config APP_LCD_PIN_CS
-    int "LCD CS GPIO"
-    default 10 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 10
-config APP_LCD_PIN_SCK
-    int "LCD SCK GPIO"
-    default 12 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 12
-config APP_LCD_PIN_MOSI
-    int "LCD MOSI GPIO"
-    default 11 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 11
-config APP_LCD_PIN_MISO
-    int "LCD MISO GPIO (-1 if unused)"
-    default 13 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 13
-config APP_LCD_PIN_RST
-    int "LCD RST GPIO (-1 if tied to ESP reset)"
-    default -1 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default -1
 config APP_LCD_PIN_BL
     int "Backlight GPIO (-1 disable)"
-    default 45 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 45
 
 config APP_LCD_BL_PWM_ENABLE
@@ -140,30 +76,165 @@ config APP_LCD_BL_PWM_FREQ_HZ
     depends on APP_LCD_BL_PWM_ENABLE
     default 5000
     range 100 40000
-    help
-        PWM frequency for backlight control. 5kHz is a good default.
 
 config APP_LCD_BL_PWM_RESOLUTION
     int "Backlight PWM resolution (bits)"
     depends on APP_LCD_BL_PWM_ENABLE
     default 10
     range 8 14
-    help
-        PWM resolution in bits. 10 bits = 0-1023 duty cycle range.
 
 config APP_LCD_BL_DEFAULT_DUTY
     int "Default backlight duty cycle (0-100%)"
     depends on APP_LCD_BL_PWM_ENABLE
     default 80
     range 0 100
-    help
-        Initial backlight brightness as percentage (0=off, 100=full).
+endmenu
+
+menu "Display: SPI (for ILI9341)"
+depends on APP_DISPLAY_ILI9341_SPI
+
+config APP_LCD_SPI_HOST
+    int "SPI host id (2=SPI2_HOST, 3=SPI3_HOST)"
+    range 2 3
+    default 2
+
+config APP_LCD_SPI_CLOCK_HZ
+    int "SPI clock (Hz)"
+    default 26000000
+
+config APP_LCD_PIN_DC
+    int "LCD D/C GPIO"
+    default 46
+config APP_LCD_PIN_CS
+    int "LCD CS GPIO"
+    default 10
+config APP_LCD_PIN_SCK
+    int "LCD SCK GPIO"
+    default 12
+config APP_LCD_PIN_MOSI
+    int "LCD MOSI GPIO"
+    default 11
+config APP_LCD_PIN_MISO
+    int "LCD MISO GPIO (-1 if unused)"
+    default 13
+config APP_LCD_PIN_RST
+    int "LCD RST GPIO (-1 if tied to ESP reset)"
+    default -1
 
 endmenu
 
-#
-# Touch HAL selection
-#
+menu "Display: RGB Parallel"
+depends on APP_DISPLAY_RGB_PARALLEL
+
+config APP_LCD_RGB_PCLK_HZ
+    int "RGB pixel clock (Hz)"
+    default 15000000
+
+config APP_LCD_RGB_PIN_PCLK
+    int "RGB PCLK GPIO"
+    default 0
+config APP_LCD_RGB_PIN_HSYNC
+    int "RGB HSYNC GPIO"
+    default 39
+config APP_LCD_RGB_PIN_VSYNC
+    int "RGB VSYNC GPIO"
+    default 41
+config APP_LCD_RGB_PIN_DE
+    int "RGB DE (Data Enable) GPIO"
+    default 40
+
+config APP_LCD_RGB_PIN_D0
+    int "RGB D0 GPIO"
+    default 8
+config APP_LCD_RGB_PIN_D1
+    int "RGB D1 GPIO"
+    default 3
+config APP_LCD_RGB_PIN_D2
+    int "RGB D2 GPIO"
+    default 46
+config APP_LCD_RGB_PIN_D3
+    int "RGB D3 GPIO"
+    default 9
+config APP_LCD_RGB_PIN_D4
+    int "RGB D4 GPIO"
+    default 1
+config APP_LCD_RGB_PIN_D5
+    int "RGB D5 GPIO"
+    default 5
+config APP_LCD_RGB_PIN_D6
+    int "RGB D6 GPIO"
+    default 6
+config APP_LCD_RGB_PIN_D7
+    int "RGB D7 GPIO"
+    default 7
+config APP_LCD_RGB_PIN_D8
+    int "RGB D8 GPIO"
+    default 15
+config APP_LCD_RGB_PIN_D9
+    int "RGB D9 GPIO"
+    default 16
+config APP_LCD_RGB_PIN_D10
+    int "RGB D10 GPIO"
+    default 4
+config APP_LCD_RGB_PIN_D11
+    int "RGB D11 GPIO"
+    default 45
+config APP_LCD_RGB_PIN_D12
+    int "RGB D12 GPIO"
+    default 48
+config APP_LCD_RGB_PIN_D13
+    int "RGB D13 GPIO"
+    default 47
+config APP_LCD_RGB_PIN_D14
+    int "RGB D14 GPIO"
+    default 21
+config APP_LCD_RGB_PIN_D15
+    int "RGB D15 GPIO"
+    default 14
+
+config APP_LCD_RGB_HSYNC_POLARITY
+    int "HSYNC polarity (0=active low, 1=active high)"
+    range 0 1
+    default 0
+config APP_LCD_RGB_HSYNC_FRONT_PORCH
+    int "HSYNC front porch"
+    default 8
+config APP_LCD_RGB_HSYNC_PULSE_WIDTH
+    int "HSYNC pulse width"
+    default 4
+config APP_LCD_RGB_HSYNC_BACK_PORCH
+    int "HSYNC back porch"
+    default 43
+
+config APP_LCD_RGB_VSYNC_POLARITY
+    int "VSYNC polarity (0=active low, 1=active high)"
+    range 0 1
+    default 0
+config APP_LCD_RGB_VSYNC_FRONT_PORCH
+    int "VSYNC front porch"
+    default 8
+config APP_LCD_RGB_VSYNC_PULSE_WIDTH
+    int "VSYNC pulse width"
+    default 4
+config APP_LCD_RGB_VSYNC_BACK_PORCH
+    int "VSYNC back porch"
+    default 12
+
+config APP_LCD_RGB_PCLK_ACTIVE_NEG
+    int "PCLK active negative (0=positive edge, 1=negative edge)"
+    range 0 1
+    default 1
+config APP_LCD_RGB_DE_IDLE_HIGH
+    int "DE idle high (0=idle low, 1=idle high)"
+    range 0 1
+    default 0
+config APP_LCD_RGB_PCLK_IDLE_HIGH
+    int "PCLK idle high (0=idle low, 1=idle high)"
+    range 0 1
+    default 0
+
+endmenu
+
 choice APP_TOUCH_DRIVER
     prompt "Touch driver"
     default APP_TOUCH_FT6X36_I2C
@@ -174,10 +245,10 @@ config APP_TOUCH_NONE
     bool "No touch"
 
 config APP_TOUCH_FT6X36_I2C
-    bool "FT6x36/FT6336 over I2C (esp_lcd_touch_ft6x36)"
+    bool "FT6x36/FT6336 over I2C"
 
-config APP_TOUCH_GT911_I2C_PLACEHOLDER
-    bool "GT911 over I2C (placeholder for ESP32-P4)"
+config APP_TOUCH_GT911_I2C
+    bool "GT911 over I2C"
 
 endchoice
 
@@ -191,26 +262,23 @@ config APP_TOUCH_I2C_PORT
 
 config APP_TOUCH_PIN_SCL
     int "Touch I2C SCL GPIO"
-    default 15 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 15
 config APP_TOUCH_PIN_SDA
     int "Touch I2C SDA GPIO"
-    default 16 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 16
 
 config APP_TOUCH_I2C_CLOCK_HZ
     int "Touch I2C clock (Hz)"
-    default 100000 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 100000
 
 config APP_TOUCH_I2C_ADDR
     hex "Touch I2C address"
     default 0x38 if APP_TOUCH_FT6X36_I2C
+    default 0x5D if APP_TOUCH_GT911_I2C
     default 0x38
 
 config APP_TOUCH_PIN_RST
     int "Touch RST GPIO (-1 disable)"
-    default 18 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 18
 
 config APP_TOUCH_MANUAL_RESET
@@ -234,14 +302,10 @@ config APP_TOUCH_USE_INT_PIN
 
 config APP_TOUCH_PIN_INT
     int "Touch INT GPIO"
-    default 17 if APP_BOARD_ESP32S3_ILI9341_FT6X36
     default 17
     depends on APP_TOUCH_USE_INT_PIN
 endmenu
 
-#
-# LVGL port behaviour
-#
 menu "LVGL port tuning"
 
 config APP_LVGL_BUF_LINES
@@ -259,7 +323,6 @@ config APP_LVGL_BUFF_DMA
     bool "Use DMA-capable buffers"
     default y
 
-# You prefer int so they always exist
 config APP_ROT_SWAP_XY
     int "rotation.swap_xy (0/1)"
     range 0 1
@@ -268,8 +331,7 @@ config APP_ROT_SWAP_XY
 config APP_ROT_MIRROR_X
     int "rotation.mirror_x (0/1)"
     range 0 1
-    default 1 if APP_BOARD_ESP32S3_ILI9341_FT6X36
-    default 0
+    default 1
 
 config APP_ROT_MIRROR_Y
     int "rotation.mirror_y (0/1)"

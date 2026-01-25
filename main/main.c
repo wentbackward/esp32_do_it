@@ -10,8 +10,18 @@
 #include "esp_flash.h"
 #include "esp_system.h"
 
-#include "app_display_ili9341.h"
-#include "app_touch_ft6x36.h"
+#if CONFIG_APP_DISPLAY_ILI9341_SPI
+    #include "app_display_ili9341.h"
+#elif CONFIG_APP_DISPLAY_RGB_PARALLEL
+    #include "app_display_rgb.h"
+#endif
+
+#if CONFIG_APP_TOUCH_FT6X36_I2C
+    #include "app_touch_ft6x36.h"
+#elif CONFIG_APP_TOUCH_GT911_I2C
+    #include "app_touch_gt911.h"
+#endif
+
 #include "app_lvgl.h"
 #include "esp_lvgl_port.h"
 
@@ -62,6 +72,7 @@ void app_main(void)
     esp_chip_info_t chip_info;
     uint32_t flash_size;
     esp_chip_info(&chip_info);
+    
     esp_flash_get_size(NULL, &flash_size);
     ESP_LOGI(TAG, "%s cores=%d rev=%d flash=%" PRIu32 "MB",
              CONFIG_IDF_TARGET, chip_info.cores, chip_info.revision,
@@ -74,7 +85,7 @@ void app_main(void)
     // Touch (optional)
     app_touch_t touch = {0};
     esp_lcd_touch_handle_t tp = NULL;
-#if CONFIG_APP_TOUCH_FT6X36_I2C
+#if CONFIG_APP_TOUCH_FT6X36_I2C || CONFIG_APP_TOUCH_GT911_I2C
     if (app_touch_init(&touch) == ESP_OK) tp = touch.tp;
     else ESP_LOGW(TAG, "Touch init failed; continuing without touch");
 #endif
