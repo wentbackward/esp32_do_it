@@ -144,15 +144,16 @@ void app_main(void)
     ESP_LOGI(TAG, "Running Simple UI (LVGL)");
     ui_simple_start();
 #elif CONFIG_APP_UI_DEMO
-    #if LV_USE_DEMO_WIDGETS
-        ESP_LOGI(TAG, "Running LVGL Demo Widgets");
-        lv_demo_widgets();
-    #elif LV_USE_DEMO_BENCHMARK
+    #if LV_USE_DEMO_BENCHMARK
         ESP_LOGI(TAG, "Running LVGL Benchmark");
         lv_demo_benchmark();
     #elif LV_USE_DEMO_MUSIC
         ESP_LOGI(TAG, "Running LVGL Music Demo");
         lv_demo_music();
+    #elif LV_USE_DEMO_WIDGETS
+        // Check this last as it is alwaye enabled if Demos are built.
+        ESP_LOGI(TAG, "Running LVGL Demo Widgets");
+        lv_demo_widgets();
     #else
         ESP_LOGI(TAG, "No LVGL demos enabled. Turn on LV_USE_DEMO_* in menuconfig.");
         lv_obj_t *l = lv_label_create(lv_screen_active());
