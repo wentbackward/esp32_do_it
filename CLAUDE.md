@@ -252,6 +252,18 @@ This approach:
 - Provides predictable memory footprint (compile-time, not runtime)
 - Keeps heap free for dynamic content that LVGL manages
 
+**Proportional grid spacing**: The hardware test UI calculates grid spacing proportionally based on screen dimensions to ensure major gridlines evenly divide both width and height. The algorithm:
+1. Tries common spacing values (20, 40, 50, 80, 100 pixels)
+2. Scores each based on even division and reasonable line count (4-10 major lines per dimension)
+3. Selects the spacing that divides both dimensions evenly with minimal remainder
+4. Example: 800x480 screen uses 80px major grid (10×6 major lines), 240x320 uses 40px (6×8 major lines)
+5. Minor grid is always major/4 for consistent visual density
+6. Displays total line count in UI (each line is an LVGL object that affects FPS)
+
+**Performance impact**: Each grid line is a separate LVGL line object. More lines = more objects to render = lower FPS. The algorithm targets 4-10 major lines per dimension to balance visual utility with rendering performance. The UI displays "Grid: N lines (AxBpx)" showing total line count - useful for understanding FPS behavior. On large displays (800x480), fewer, wider-spaced lines maintain good performance.
+
+This ensures the grid looks clean on any display size without hardcoded values while maintaining good rendering performance.
+
 **Why this matters**: On ESP32, menuconfig controls whether heap uses PSRAM, internal RAM, or both. Direct malloc/lv_malloc calls bypass these policies. Static allocation for app data + deferring to LVGL for UI objects = clean separation that respects menuconfig settings.
 
 ### LVGL Memory Allocator Selection
@@ -291,7 +303,18 @@ Selected via Kconfig `CONFIG_APP_UI_*`:
 
 1. **Hardware Display Test** (`CONFIG_APP_UI_HW_DISPLAY_TEST=y`): RGB panel validation without LVGL (color fills, color bars). For board bringup.
 
-2. **Hardware Test UI** (`CONFIG_APP_UI_HWTEST=y`): LVGL-based hardware diagnostics with buttons for orientation, inversion, backlight control.
+2. **Hardware Test UI** (`CONFIG_APP_UI_HWTEST=y`): LVGL-based hardware diagnostics with:
+   - Proportional grid (auto-calculated for even screen division)
+   - Grid info label showing line count and spacing (e.g., "Grid: 68 lines (20x80px)")
+   - Corner markers (TL/TR/BL/BR) for orientation verification
+   - Color swatches (R/G/B/W/C/M/Y/K) for color accuracy
+   - Touch dot and coordinate display
+   - Moving bar for tearing/flicker detection
+   - FPS counter
+   - Optional controls (displayed only if hardware supports):
+     - Invert button (SPI displays)
+     - Orientation cycle button (SPI displays)
+     - Backlight slider (if PWM enabled)
 
 3. **Simple UI** (`CONFIG_APP_UI_SIMPLE=y`): Minimal LVGL demo (color bars, label, button). See `ui_simple_start()` in `main/main.c`.
 

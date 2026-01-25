@@ -11,6 +11,7 @@ static hwtest_cfg_t s_cfg;
 static lv_obj_t *s_touch_dot;
 static lv_obj_t *s_touch_label;
 static lv_obj_t *s_status_label;
+static lv_obj_t *s_grid_info_label;
 static lv_obj_t *s_inv_btn_label;
 static lv_obj_t *s_orient_btn_label;
 static lv_obj_t *s_bl_slider_label;
@@ -243,13 +244,61 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     int W = (int)lv_obj_get_width(scr);
     int H = (int)lv_obj_get_height(scr);
 
-    // Background grid (lightweight)
-    ESP_LOGI(TAG, "Build gridlines");
-    grid_build(scr, 10, 50);
+    // Calculate proportional grid spacing that evenly divides screen dimensions
+    // Goal: major grid divides both W and H evenly for clean appearance
+    // Try common spacings (20, 40, 50, 80, 100) and pick best fit
+    int grid_major = 50;  // default
+    int best_score = 1000000;
 
-    ESP_LOGI(TAG, "Add title and status line");
+    int candidates[] = {20, 40, 50, 80, 100};
+    for (int i = 0; i < 5; i++) {
+        int spacing = candidates[i];
+        int lines_w = W / spacing;
+        int lines_h = H / spacing;
+
+        // Calculate how evenly it divides (0 = perfect)
+        int remainder_w = W % spacing;
+        int remainder_h = H % spacing;
+
+        // Prefer even division, and reasonable number of lines (4-10)
+        int score = remainder_w + remainder_h;
+        if (lines_w < 4 || lines_h < 4 || lines_w > 10 || lines_h > 10) {
+            score += 1000;  // Penalize if too few or too many lines
+        }
+
+        if (score <= best_score) {
+            best_score = score;
+            grid_major = spacing;  // On tie, prefer larger spacing (fewer lines)
+        }
+    }
+
+    // Calculate minor grid spacing (1/4 of major for good visual density)
+    int grid_minor = grid_major / 4;
+
+    // Ensure we don't exceed point array capacity
+    // Max lines = (W/minor + H/minor + W/major + H/major) * 2 points per line
+    int estimated_points = ((W/grid_minor + H/grid_minor + W/grid_major + H/grid_major) * 2);
+    if (estimated_points > MAX_GRID_POINTS) {
+        // Scale up spacing if we'd exceed capacity
+        int scale = (estimated_points / MAX_GRID_POINTS) + 1;
+        grid_minor *= scale;
+        grid_major *= scale;
+        ESP_LOGW(TAG, "Grid scaled up by %dx to fit point array limit", scale);
+    }
+
+    // Calculate grid line counts for display
+    int minor_lines_v = (W / grid_minor) + 1;  // Vertical lines (including edges)
+    int minor_lines_h = (H / grid_minor) + 1;  // Horizontal lines
+    int major_lines_v = (W / grid_major) + 1;
+    int major_lines_h = (H / grid_major) + 1;
+    int total_lines = minor_lines_v + minor_lines_h + major_lines_v + major_lines_h;
+
+    ESP_LOGI(TAG, "Build gridlines: %dx%d screen, minor=%dpx, major=%dpx, total_lines=%d",
+             W, H, grid_minor, grid_major, total_lines);
+    grid_build(scr, grid_minor, grid_major);
+
     lv_obj_t *title = lv_label_create(scr);
-    lv_label_set_text(title, "HW Bring-up Toolkit");
+    lv_label_set_text(title, (s_cfg.title ? s_cfg.title : "HW Bring-up Toolkit (LVGL)"));
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
 
     // Status line (also shows FPS-ish)
@@ -257,12 +306,21 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     lv_label_set_text(s_status_label, (s_cfg.title ? s_cfg.title : "HW Bring-up Toolkit"));
     lv_obj_align(s_status_label, LV_ALIGN_TOP_MID, 0, 22);
 
+    // Grid info (shows line count - each line is a UI element affecting FPS)
+    s_grid_info_label = lv_label_create(scr);
+    char grid_buf[64];
+    snprintf(grid_buf, sizeof(grid_buf), "Grid: %d lines (Major:%dpx Minor:%dpx)",
+             total_lines, grid_minor, grid_major);
+    lv_label_set_text(s_grid_info_label, grid_buf);
+    lv_obj_align(s_grid_info_label, LV_ALIGN_TOP_LEFT, 4, 40);
+
     // Corner markers
     ESP_LOGI(TAG, "Create the corner markers");
-    lv_obj_t *box_tl = mk_box(scr, 44, 24, 0x202020, "TL"); lv_obj_align(box_tl, LV_ALIGN_TOP_LEFT, 2, 2);
-    lv_obj_t *box_tr = mk_box(scr, 44, 24, 0x202020, "TR"); lv_obj_align(box_tr, LV_ALIGN_TOP_RIGHT, -2, 2);
-    lv_obj_t *box_bl = mk_box(scr, 44, 24, 0x202020, "BL"); lv_obj_align(box_bl, LV_ALIGN_BOTTOM_LEFT, 2, -2);
-    lv_obj_t *box_br = mk_box(scr, 44, 24, 0x202020, "BR"); lv_obj_align(box_br, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
+    uint32_t box_border = 5;
+    lv_obj_t *box_tl = mk_box(scr, 44, 24, 0x202020, "TL"); lv_obj_align(box_tl, LV_ALIGN_TOP_LEFT, box_border, box_border);
+    lv_obj_t *box_tr = mk_box(scr, 44, 24, 0x202020, "TR"); lv_obj_align(box_tr, LV_ALIGN_TOP_RIGHT, -box_border, box_border);
+    lv_obj_t *box_bl = mk_box(scr, 44, 24, 0x202020, "BL"); lv_obj_align(box_bl, LV_ALIGN_BOTTOM_LEFT, box_border, -box_border);
+    lv_obj_t *box_br = mk_box(scr, 44, 24, 0x202020, "BR"); lv_obj_align(box_br, LV_ALIGN_BOTTOM_RIGHT, -box_border, -box_border);
 
     ESP_LOGI(TAG, "Create the color swatches");
     lv_obj_t *sw = lv_obj_create(scr);

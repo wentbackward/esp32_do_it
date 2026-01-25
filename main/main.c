@@ -111,21 +111,23 @@ void app_main(void)
 
     // UI selection
     hwtest_cfg_t hwcfg = {
-        .title = "HW Test (generic)",
         .hres = CONFIG_APP_LCD_HRES,
         .vres = CONFIG_APP_LCD_VRES,
     #if CONFIG_APP_DISPLAY_ILI9341_SPI
+        .title = "HW Test ILI9341+SPI (LVGL)",
         // SPI displays support invert and orientation via panel commands
         .set_invert = app_display_set_invert,
         .cycle_orientation = app_display_cycle_orientation,
         .ctx = (void*)disp_hw.io,
     #elif CONFIG_APP_DISPLAY_RGB_PARALLEL
         // RGB displays don't support these features
+        .title = "HW Test RGB Parallel (LVGL)",
         .set_invert = NULL,
         .cycle_orientation = NULL,
         .ctx = NULL,
     #else
         // Unknown display type - disable features to be safe
+        .title = "HW Test Unknown",
         .set_invert = NULL,
         .cycle_orientation = NULL,
         .ctx = NULL,
