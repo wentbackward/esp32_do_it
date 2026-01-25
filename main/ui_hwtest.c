@@ -15,6 +15,7 @@ static lv_obj_t *s_grid_info_label;
 static lv_obj_t *s_inv_btn_label;
 static lv_obj_t *s_orient_btn_label;
 static lv_obj_t *s_bl_slider_label;
+static lv_obj_t *s_test_btn_label;
 
 static lv_timer_t *s_anim_timer;
 static lv_timer_t *s_fps_timer;
@@ -28,6 +29,8 @@ static uint8_t s_bl_pct = 100;
 
 static int s_bar_x = 0;
 static int s_bar_dir = 1;
+
+static uint32_t s_click_count = 0;
 
 static const char *TAG = "ui_hwtest.c";
 
@@ -128,35 +131,42 @@ static void grid_build(lv_obj_t *scr, int step_minor, int step_major)
 {
     int32_t W = lv_obj_get_width(scr);
     int32_t H = lv_obj_get_height(scr);
+    int maj_color = 0x000000;
+    int min_color = 0xAAAAAA;
 
     s_point_idx = 0;  // Reset point index
 
     // Minor grid lines
     for (int32_t x = 0; x <= W; x += step_minor) {
-        mk_line(scr,
+        lv_obj_t *line = mk_line(scr,
                 (lv_point_precise_t){ x, 0 },
                 (lv_point_precise_t){ x, H },
-                0x909090, LV_OPA_50);
+                min_color, LV_OPA_50);
+        lv_obj_clear_flag(line, LV_OBJ_FLAG_SCROLLABLE);
+
     }
     for (int32_t y = 0; y <= H; y += step_minor) {
-        mk_line(scr,
+        lv_obj_t *line = mk_line(scr,
                 (lv_point_precise_t){ 0, y },
                 (lv_point_precise_t){ W, y },
-                0x909090, LV_OPA_50);
+                min_color, LV_OPA_50);
+        lv_obj_clear_flag(line, LV_OBJ_FLAG_SCROLLABLE);
     }
 
     // Major grid lines
     for (int32_t x = 0; x <= W; x += step_major) {
-        mk_line(scr,
+        lv_obj_t *line = mk_line(scr,
                 (lv_point_precise_t){ x, 0 },
                 (lv_point_precise_t){ x, H },
-                0x000000, LV_OPA_70);
+                maj_color, LV_OPA_100);
+        lv_obj_clear_flag(line, LV_OBJ_FLAG_SCROLLABLE);
     }
     for (int32_t y = 0; y <= H; y += step_major) {
-        mk_line(scr,
+        lv_obj_t *line = mk_line(scr,
                 (lv_point_precise_t){ 0, y },
                 (lv_point_precise_t){ W, y },
-                0x000000, LV_OPA_70);
+                maj_color, LV_OPA_100);
+        lv_obj_clear_flag(line, LV_OBJ_FLAG_SCROLLABLE);
     }
 
     ESP_LOGI(TAG, "Grid built: %d points used (max %d)", s_point_idx, MAX_GRID_POINTS);
@@ -230,6 +240,21 @@ static void bl_slider_cb(lv_event_t *e)
     if (s_cfg.set_backlight) {
         (void)s_cfg.set_backlight(s_bl_pct);
     }
+}
+
+static void test_btn_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+
+    s_click_count++;
+
+    if (s_test_btn_label) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "Clicks: %lu", (unsigned long)s_click_count);
+        lv_label_set_text(s_test_btn_label, buf);
+    }
+
+    ESP_LOGI(TAG, "Test button clicked: %lu", (unsigned long)s_click_count);
 }
 
 /* ---------------- Public init ---------------- */
@@ -316,7 +341,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
 
     // Corner markers
     ESP_LOGI(TAG, "Create the corner markers");
-    uint32_t box_border = 5;
+    uint32_t box_border = 4;
     lv_obj_t *box_tl = mk_box(scr, 44, 24, 0x202020, "TL"); lv_obj_align(box_tl, LV_ALIGN_TOP_LEFT, box_border, box_border);
     lv_obj_t *box_tr = mk_box(scr, 44, 24, 0x202020, "TR"); lv_obj_align(box_tr, LV_ALIGN_TOP_RIGHT, -box_border, box_border);
     lv_obj_t *box_bl = mk_box(scr, 44, 24, 0x202020, "BL"); lv_obj_align(box_bl, LV_ALIGN_BOTTOM_LEFT, box_border, -box_border);
@@ -324,8 +349,8 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
 
     ESP_LOGI(TAG, "Create the color swatches");
     lv_obj_t *sw = lv_obj_create(scr);
-    lv_obj_set_size(sw, (lv_coord_t)(W - 8), 72);
-    lv_obj_align(sw, LV_ALIGN_BOTTOM_MID, 0, -4);
+    lv_obj_set_size(sw, (lv_coord_t)(W - 8), (48 + 16));
+    lv_obj_align(sw, LV_ALIGN_BOTTOM_MID, 0, -32);
     lv_obj_set_style_bg_color(sw, lv_color_hex(0x000000), 0);
     lv_obj_set_style_border_width(sw, 1, 0);
     lv_obj_set_style_border_color(sw, lv_color_hex(0x404040), 0);
@@ -334,8 +359,8 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     lv_obj_set_flex_flow(sw, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_clear_flag(sw, LV_OBJ_FLAG_SCROLLABLE);
 
-    int boxw = (W - 8 - 4 * 5) / 4;
-    int boxh = 28;
+    int boxw = (W / 4) - 8;
+    int boxh = 24;
 
     mk_box(sw, boxw, boxh, 0xFF0000, "R");
     mk_box(sw, boxw, boxh, 0x00FF00, "G");
@@ -350,7 +375,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     // Touch label (just above swatches)
     s_touch_label = lv_label_create(scr);
     lv_label_set_text(s_touch_label, "Touch: x=? y=?");
-    lv_obj_align(s_touch_label, LV_ALIGN_BOTTOM_LEFT, 6, -82);
+    lv_obj_align(s_touch_label, LV_ALIGN_BOTTOM_LEFT, 6, -100);
 
     ESP_LOGI(TAG, "Create the touch dot");
     s_touch_dot = lv_obj_create(scr);
@@ -373,8 +398,8 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
 
     ESP_LOGI(TAG, "Moving translucent bar (tearing/flicker)");
     s_anim_bar = lv_obj_create(scr);
-    lv_obj_set_size(s_anim_bar, 16, (lv_coord_t)(H - 72 - 34));
-    lv_obj_align(s_anim_bar, LV_ALIGN_TOP_LEFT, 0, 34);
+    lv_obj_set_size(s_anim_bar, 16, (lv_coord_t)(H - 16));
+    lv_obj_align(s_anim_bar, LV_ALIGN_TOP_LEFT, 0, 8);
     lv_obj_set_style_bg_color(s_anim_bar, lv_color_hex(0x00FFFF), 0);
     lv_obj_set_style_bg_opa(s_anim_bar, LV_OPA_30, 0);
     lv_obj_set_style_border_width(s_anim_bar, 0, 0);
@@ -417,15 +442,28 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
         y_pos += 8; // Extra spacing before slider
         lv_obj_t *bl_slider = lv_slider_create(scr);
         lv_obj_set_size(bl_slider, 120, 12);
-        lv_obj_align(bl_slider, LV_ALIGN_TOP_RIGHT, -6, y_pos);
+        lv_obj_align(bl_slider, LV_ALIGN_TOP_RIGHT, -12, y_pos);
         lv_slider_set_range(bl_slider, 0, 100);
-        lv_slider_set_value(bl_slider, 100, LV_ANIM_OFF);
+        lv_slider_set_value(bl_slider, 100, LV_ANIM_ON);
         lv_obj_add_event_cb(bl_slider, bl_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
         s_bl_slider_label = lv_label_create(scr);
         lv_label_set_text(s_bl_slider_label, "BL: 100%");
-        lv_obj_align(s_bl_slider_label, LV_ALIGN_TOP_RIGHT, -6, y_pos + 12);
+        lv_obj_align(s_bl_slider_label, LV_ALIGN_TOP_RIGHT, -6, y_pos + 14);
     }
+
+    // Test button (for click testing)
+    ESP_LOGI(TAG, "Create test button");
+    lv_obj_t *test_btn = lv_button_create(scr);
+    lv_obj_set_size(test_btn, 160, 60);
+    lv_obj_align(test_btn, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_event_cb(test_btn, test_btn_cb, LV_EVENT_CLICKED, NULL);
+
+    s_test_btn_label = lv_label_create(test_btn);
+    lv_label_set_text(s_test_btn_label, "Tap to Test");
+    lv_obj_center(s_test_btn_label);
+
+
 
     // Timers
     ESP_LOGI(TAG, "Set Timers for animation");

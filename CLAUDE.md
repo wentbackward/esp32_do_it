@@ -308,7 +308,8 @@ Selected via Kconfig `CONFIG_APP_UI_*`:
    - Grid info label showing line count and spacing (e.g., "Grid: 68 lines (20x80px)")
    - Corner markers (TL/TR/BL/BR) for orientation verification
    - Color swatches (R/G/B/W/C/M/Y/K) for color accuracy
-   - Touch dot and coordinate display
+   - Test button (center) - click counter to verify touch/click events work correctly
+   - Touch dot and coordinate display - shows exact touch coordinates
    - Moving bar for tearing/flicker detection
    - FPS counter
    - Optional controls (displayed only if hardware supports):
