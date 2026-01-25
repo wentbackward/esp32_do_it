@@ -119,6 +119,7 @@ compile_commands.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+.vscode/
 
 # User-specific configuration files
 *.user
