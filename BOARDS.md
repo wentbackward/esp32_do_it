@@ -2,6 +2,8 @@
 
 This project supports multiple hardware boards using separate sdkconfig files.
 
+**NEW**: Hardware Display Test mode available! See [HARDWARE_TEST.md](HARDWARE_TEST.md) for testing displays without LVGL.
+
 ## Available Boards
 
 ### ESP32-S3 + SPI ILI9341 + FT6x36

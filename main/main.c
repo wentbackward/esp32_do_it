@@ -22,12 +22,14 @@
     #include "app_touch_gt911.h"
 #endif
 
-#include "app_lvgl.h"
-#include "esp_lvgl_port.h"
-
-#include "ui_hwtest.h"
-
-#include "lvgl.h"
+#if CONFIG_APP_UI_HW_DISPLAY_TEST
+    #include "hw_display_test.h"
+#else
+    #include "app_lvgl.h"
+    #include "esp_lvgl_port.h"
+    #include "ui_hwtest.h"
+    #include "lvgl.h"
+#endif
 #include "demos/lv_demos.h" 
 
 static const char *TAG = "app_main";
@@ -82,6 +84,14 @@ void app_main(void)
     app_display_t disp_hw = {0};
     ESP_ERROR_CHECK(app_display_init(&disp_hw));
 
+#if CONFIG_APP_UI_HW_DISPLAY_TEST
+    // Hardware display test mode (no LVGL)
+    ESP_ERROR_CHECK(hw_display_test_run(disp_hw.panel, CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES));
+    ESP_LOGI(TAG, "Hardware test complete. System idle.");
+    while (true) vTaskDelay(pdMS_TO_TICKS(1000));
+
+#else
+    // Normal LVGL UI mode
     // Touch (optional)
     app_touch_t touch = {0};
     esp_lcd_touch_handle_t tp = NULL;
@@ -91,9 +101,13 @@ void app_main(void)
 #endif
 
     // LVGL
+    ESP_LOGI(TAG, "Proceeding with LVGL configuration");
     app_lvgl_handles_t lv = {0};
     ESP_ERROR_CHECK(app_lvgl_init_and_add(disp_hw.panel, disp_hw.io, tp, &lv));
     (void)lv;
+
+    ESP_LOGI(TAG, "LVGL configuration complete - proceeding to set up UI");
+
 
     // UI selection
     hwtest_cfg_t hwcfg = {
@@ -132,4 +146,5 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Running.");
     while (true) vTaskDelay(pdMS_TO_TICKS(1000));
+#endif
 }

@@ -35,6 +35,31 @@ esp_err_t app_display_init(app_display_t *out)
 {
     ESP_RETURN_ON_FALSE(out, ESP_ERR_INVALID_ARG, TAG, "null out");
 
+    // Elecrow ESP32-S3 5" board specific GPIO setup
+    // GPIO 2: Display power/backlight enable
+    gpio_config_t pwr_cfg = {
+        .pin_bit_mask = (1ULL << 2),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_RETURN_ON_ERROR(gpio_config(&pwr_cfg), TAG, "gpio_config GPIO2");
+    gpio_set_level(2, 1);  // HIGH to enable
+    ESP_LOGI(TAG, "GPIO 2 (display power) set HIGH");
+
+    // GPIO 38: Control signal (purpose unclear, but required)
+    gpio_config_t ctrl_cfg = {
+        .pin_bit_mask = (1ULL << 38),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_RETURN_ON_ERROR(gpio_config(&ctrl_cfg), TAG, "gpio_config GPIO38");
+    gpio_set_level(38, 0);  // LOW per Elecrow example
+    ESP_LOGI(TAG, "GPIO 38 (control) set LOW");
+
     // RGB LCD panel configuration
     esp_lcd_rgb_panel_config_t panel_config = {
         .clk_src = LCD_CLK_SRC_DEFAULT,
@@ -68,7 +93,7 @@ esp_err_t app_display_init(app_display_t *out)
         .vsync_gpio_num = CONFIG_APP_LCD_RGB_PIN_VSYNC,
         .de_gpio_num = CONFIG_APP_LCD_RGB_PIN_DE,
         .pclk_gpio_num = CONFIG_APP_LCD_RGB_PIN_PCLK,
-        .disp_gpio_num = GPIO_NUM_NC,
+        .disp_gpio_num = (CONFIG_APP_LCD_RGB_PIN_DISP_EN >= 0) ? CONFIG_APP_LCD_RGB_PIN_DISP_EN : GPIO_NUM_NC,
         .data_gpio_nums = {
             CONFIG_APP_LCD_RGB_PIN_D0,
             CONFIG_APP_LCD_RGB_PIN_D1,
@@ -95,14 +120,28 @@ esp_err_t app_display_init(app_display_t *out)
         },
     };
 
+    ESP_LOGI(TAG, "RGB panel config: %dx%d, PCLK=%d Hz, bounce_buf=%d px",
+             CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES, CONFIG_APP_LCD_RGB_PCLK_HZ,
+             CONFIG_APP_LCD_HRES * CONFIG_APP_LVGL_BUF_LINES);
+    ESP_LOGI(TAG, "HSYNC: %d, VSYNC: %d, DE: %d, PCLK: %d, DISP_EN: %d",
+             CONFIG_APP_LCD_RGB_PIN_HSYNC, CONFIG_APP_LCD_RGB_PIN_VSYNC,
+             CONFIG_APP_LCD_RGB_PIN_DE, CONFIG_APP_LCD_RGB_PIN_PCLK,
+             CONFIG_APP_LCD_RGB_PIN_DISP_EN);
+
     esp_lcd_panel_handle_t panel = NULL;
     ESP_RETURN_ON_ERROR(esp_lcd_new_rgb_panel(&panel_config, &panel), TAG, "new_rgb_panel");
+    ESP_LOGI(TAG, "RGB panel created");
+
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(panel), TAG, "panel_reset");
+    ESP_LOGI(TAG, "Panel reset complete");
+
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(panel), TAG, "panel_init");
+    ESP_LOGI(TAG, "Panel init complete");
 
     s_panel = panel;
 
     // Backlight PWM setup
+    // Note: RGB panels don't support disp_on_off, they're always active after init
     if (CONFIG_APP_LCD_PIN_BL >= 0) {
 #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
         // Configure LEDC timer
@@ -131,7 +170,6 @@ esp_err_t app_display_init(app_display_t *out)
         };
         ESP_RETURN_ON_ERROR(ledc_channel_config(&ledc_channel), TAG, "ledc_channel_config");
 
-        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
         app_display_set_backlight_percent(CONFIG_APP_LCD_BL_DEFAULT_DUTY);
 
         ESP_LOGI(TAG, "Backlight PWM: %dHz, %d-bit, duty=%"PRIu32"/%"PRIu32" (%d%%)",
@@ -146,12 +184,10 @@ esp_err_t app_display_init(app_display_t *out)
         ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
         gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
 
-        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
         ESP_LOGI(TAG, "Backlight: simple on/off (GPIO %d)", CONFIG_APP_LCD_PIN_BL);
 #endif
     } else {
-        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
-        ESP_LOGI(TAG, "No backlight GPIO configured");
+        ESP_LOGI(TAG, "No backlight GPIO configured, panel active");
     }
 
     out->panel = panel;

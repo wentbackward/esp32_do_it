@@ -2,6 +2,7 @@ set(SRCS
     "main.c"
     "app_lvgl.c"
     "ui_hwtest.c"
+    "hw_display_test.c"
 )
 
 # Display drivers

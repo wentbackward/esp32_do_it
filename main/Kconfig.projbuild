@@ -1,18 +1,22 @@
 menu "App: Display + Touch + LVGL Template"
 
-#
-# UI selection
-#
 choice APP_UI_MODE
     prompt "UI mode"
     default APP_UI_HWTEST
     help
         Select which UI starts at boot.
 
+config APP_UI_HW_DISPLAY_TEST
+    bool "Hardware Display Test (no LVGL - RGB panel validation)"
+    help
+        Tests RGB display hardware directly without LVGL.
+        Shows: Red -> Green -> Blue -> Color bars.
+        Use this to verify display is working before enabling LVGL.
+
 config APP_UI_SIMPLE
     bool "Simple UI (bars + button)"
 config APP_UI_HWTEST
-    bool "Hardware test UI (recommended)"
+    bool "Hardware test UI with LVGL"
 config APP_UI_DEMO
     bool "LVGL demo widgets (requires LVGL demos enabled)"
 endchoice
@@ -232,6 +236,12 @@ config APP_LCD_RGB_PCLK_IDLE_HIGH
     int "PCLK idle high (0=idle low, 1=idle high)"
     range 0 1
     default 0
+
+config APP_LCD_RGB_PIN_DISP_EN
+    int "Display Enable GPIO (-1 if not used)"
+    default -1
+    help
+        Some RGB panels have a display enable signal. Set to -1 if not used.
 
 endmenu
 
