@@ -11,11 +11,17 @@ This project supports multiple hardware boards using separate sdkconfig files.
 - Touch: FT6x36/FT6336 over I2C
 - Config file: `sdkconfig.defaults.esp32s3_ili9341`
 
-### ESP32-S3 + RGB 800x480 + GT911
-- Display: 800x480 RGB parallel panel
+### ESP32-S3 + RGB 800x480 + GT911 (Elecrow 5")
+- Display: 800x480 RGB parallel panel (ILI6122 controller)
 - Touch: GT911 over I2C
 - Requires PSRAM (configured automatically)
 - Config file: `sdkconfig.defaults.esp32s3_rgb`
+
+### ESP32-S3 + RGB 800x480 + GT911 (Elecrow 7")
+- Display: 800x480 RGB parallel panel
+- Touch: GT911 over I2C
+- Requires PSRAM (configured automatically)
+- Config file: `sdkconfig.defaults.esp32s3_rgb_7inch`
 
 ## How to Build for a Specific Board
 
@@ -24,8 +30,11 @@ This project supports multiple hardware boards using separate sdkconfig files.
 # For ILI9341 board
 idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3_ili9341" build
 
-# For RGB board
+# For RGB board (Elecrow 5")
 idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3_rgb" build
+
+# For RGB board (Elecrow 7")
+idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3_rgb_7inch" build
 ```
 
 ### Option 2: Set board permanently
