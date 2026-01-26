@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.elecrow.com)",
+      "WebFetch(domain:forum.elecrow.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(del sdkconfig)",
+      "Bash(idf.py fullclean:*)",
+      "Bash(idf.py:*)"
+    ]
+  }
+}

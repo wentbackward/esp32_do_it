@@ -14,6 +14,8 @@
     #include "app_display_ili9341.h"
 #elif CONFIG_APP_DISPLAY_RGB_PARALLEL
     #include "app_display_rgb.h"
+#elif CONFIG_APP_DISPLAY_LGFX
+    #include "app_display_lgfx.h"
 #endif
 
 #if CONFIG_APP_TOUCH_FT6X36_I2C
@@ -124,6 +126,16 @@ void app_main(void)
         .title = "HW Test RGB Parallel (LVGL)",
         .set_invert = NULL,
         .cycle_orientation = NULL,
+        .ctx = NULL,
+    #elif CONFIG_APP_DISPLAY_LGFX
+        .title = "HW Test LovyanGFX (LVGL)",
+        #if CONFIG_APP_LGFX_PANEL_RGB
+            .set_invert = NULL,
+            .cycle_orientation = NULL,
+        #else
+            .set_invert = app_display_set_invert,
+            .cycle_orientation = app_display_cycle_orientation,
+        #endif
         .ctx = NULL,
     #else
         // Unknown display type - disable features to be safe

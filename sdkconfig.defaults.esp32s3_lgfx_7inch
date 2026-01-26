@@ -1,9 +1,11 @@
 # Board: ELECROW CrowPanel-ESP32 7" 800x480 + RGB Panel + I2C GT911
 # SKU: DIS08070H, Board Version: V3.0
-# To use: idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3_rgb_7inch" build
+# Using LovyanGFX display driver
+# To use: idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32s3_lgfx_7inch" build
 
-# Display driver selection
-CONFIG_APP_DISPLAY_RGB_PARALLEL=y
+# Display driver selection - LovyanGFX
+CONFIG_APP_DISPLAY_LGFX=y
+CONFIG_APP_LGFX_PANEL_RGB=y
 CONFIG_IDF_TARGET="esp32s3"
 
 # Display resolution
@@ -13,58 +15,41 @@ CONFIG_APP_LCD_VRES=480
 # Display common settings
 CONFIG_APP_LCD_BGR=y
 CONFIG_APP_LCD_INVERT_DEFAULT=n
-CONFIG_APP_LCD_SWAP_BYTES=n
+CONFIG_APP_LCD_SWAP_BYTES=y
 
-# Backlight (assumes GPIO 2 like other Elecrow V3.0 boards)
+# Backlight (GPIO 2 with PWM control)
 CONFIG_APP_LCD_PIN_BL=2
 CONFIG_APP_LCD_BL_PWM_ENABLE=y
 CONFIG_APP_LCD_BL_PWM_FREQ_HZ=5000
 CONFIG_APP_LCD_BL_PWM_RESOLUTION=10
 CONFIG_APP_LCD_BL_DEFAULT_DUTY=80
 
-# RGB parallel display settings
-# Pin mapping from gfx_conf.h (LovyanGFX format)
+# RGB parallel display settings (used by lgfx_auto_config.hpp)
 CONFIG_APP_LCD_RGB_PCLK_HZ=15000000
 CONFIG_APP_LCD_RGB_PIN_PCLK=0
 CONFIG_APP_LCD_RGB_PIN_HSYNC=39
 CONFIG_APP_LCD_RGB_PIN_VSYNC=40
 CONFIG_APP_LCD_RGB_PIN_DE=41
 
-# RGB data pins (D0-D15 mapped from gfx_conf.h lines 64-81)
-# D0 (B0) = GPIO 15
+# RGB data pins (D0-D15)
 CONFIG_APP_LCD_RGB_PIN_D0=15
-# D1 (B1) = GPIO 7
 CONFIG_APP_LCD_RGB_PIN_D1=7
-# D2 (B2) = GPIO 6
 CONFIG_APP_LCD_RGB_PIN_D2=6
-# D3 (B3) = GPIO 5
 CONFIG_APP_LCD_RGB_PIN_D3=5
-# D4 (B4) = GPIO 4
 CONFIG_APP_LCD_RGB_PIN_D4=4
-# D5 (G0) = GPIO 9
 CONFIG_APP_LCD_RGB_PIN_D5=9
-# D6 (G1) = GPIO 46
 CONFIG_APP_LCD_RGB_PIN_D6=46
-# D7 (G2) = GPIO 3
 CONFIG_APP_LCD_RGB_PIN_D7=3
-# D8 (G3) = GPIO 8
 CONFIG_APP_LCD_RGB_PIN_D8=8
-# D9 (G4) = GPIO 16
 CONFIG_APP_LCD_RGB_PIN_D9=16
-# D10 (G5) = GPIO 1
 CONFIG_APP_LCD_RGB_PIN_D10=1
-# D11 (R0) = GPIO 14
 CONFIG_APP_LCD_RGB_PIN_D11=14
-# D12 (R1) = GPIO 21
 CONFIG_APP_LCD_RGB_PIN_D12=21
-# D13 (R2) = GPIO 47
 CONFIG_APP_LCD_RGB_PIN_D13=47
-# D14 (R3) = GPIO 48
 CONFIG_APP_LCD_RGB_PIN_D14=48
-# D15 (R4) = GPIO 45
 CONFIG_APP_LCD_RGB_PIN_D15=45
 
-# RGB timing settings 
+# RGB timing settings
 CONFIG_APP_LCD_RGB_HSYNC_POLARITY=0
 CONFIG_APP_LCD_RGB_HSYNC_FRONT_PORCH=40
 CONFIG_APP_LCD_RGB_HSYNC_PULSE_WIDTH=48
@@ -80,7 +65,7 @@ CONFIG_APP_LCD_RGB_PCLK_IDLE_HIGH=0
 # Touch driver selection
 CONFIG_APP_TOUCH_GT911_I2C=y
 
-# Touch I2C settings (from gfx_conf.h lines 15-18)
+# Touch I2C settings
 CONFIG_APP_TOUCH_I2C_PORT=0
 CONFIG_APP_TOUCH_PIN_SCL=20
 CONFIG_APP_TOUCH_PIN_SDA=19
@@ -98,7 +83,7 @@ CONFIG_APP_ROT_MIRROR_Y=0
 # ESP32-S3 CPU frequency
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 
-# ESP Tuning
+# ESP Tuning for performance
 CONFIG_GPIO_CTRL_FUNC_IN_IRAM=y
 CONFIG_I2C_ISR_IRAM_SAFE=y
 CONFIG_I2S_ISR_IRAM_SAFE=y
@@ -109,22 +94,19 @@ CONFIG_SPI_MASTER_IN_IRAM=y
 CONFIG_SPI_SLAVE_IN_IRAM=y
 CONFIG_TOUCH_CTRL_FUNC_IN_IRAM=y
 CONFIG_TOUCH_ISR_IRAM_SAFE=y
-CONFIG_LCD_RGB_ISR_IRAM_SAFE=y 
-# This makes it very unstable, keep off:
+CONFIG_LCD_RGB_ISR_IRAM_SAFE=y
+# This makes it very unstable with LGFX, keep off:
 CONFIG_LCD_RGB_RESTART_IN_VSYNC=n
 
 # PSRAM configuration for RGB panel (requires large framebuffer)
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y
-CONFIG_SPIRAM_IGNORE_NOTFOUND=n
 CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=n
 
 # LVGL memory: use C library malloc for PSRAM boards
-# This allows LVGL to dynamically use all available PSRAM (~8 MB) instead of a fixed 128 KB pool.
-# ESP-IDF's malloc automatically places large allocations (>16 KB) in PSRAM and
-# small/critical allocations in internal RAM (CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384).
-# No need to tune LV_MEM_SIZE - LVGL uses as much memory as needed from available PSRAM.
+# LovyanGFX + LVGL benefits from dynamic PSRAM allocation
 CONFIG_LV_USE_CLIB_MALLOC=y
 CONFIG_LV_USE_CLIB_STRING=y
 CONFIG_LV_USE_CLIB_SPRINTF=y

@@ -33,6 +33,12 @@ config APP_DISPLAY_ILI9341_SPI
 config APP_DISPLAY_RGB_PARALLEL
     bool "RGB parallel 16-bit"
 
+config APP_DISPLAY_LGFX
+    bool "LovyanGFX (supports SPI and RGB panels)"
+    help
+        Use LovyanGFX library as display driver. Supports multiple panel types
+        with optimized performance. Configure via lgfx_user.hpp.
+
 config APP_DISPLAY_MIPI_DSI_PLACEHOLDER
     bool "MIPI DSI (placeholder)"
 
@@ -127,8 +133,27 @@ config APP_LCD_PIN_RST
 
 endmenu
 
-menu "Display: RGB Parallel"
-depends on APP_DISPLAY_RGB_PARALLEL
+menu "Display: LovyanGFX"
+depends on APP_DISPLAY_LGFX
+
+choice APP_LGFX_PANEL_TYPE
+    prompt "LovyanGFX panel type"
+    default APP_LGFX_PANEL_RGB
+    help
+        Select which panel type to use with LovyanGFX.
+
+config APP_LGFX_PANEL_RGB
+    bool "RGB parallel panel"
+
+config APP_LGFX_PANEL_SPI
+    bool "SPI panel (ILI9341, ST7789, etc.)"
+
+endchoice
+
+endmenu
+
+menu "Display: RGB Parallel Pins"
+depends on APP_DISPLAY_RGB_PARALLEL || APP_LGFX_PANEL_RGB
 
 config APP_LCD_RGB_PCLK_HZ
     int "RGB pixel clock (Hz)"
@@ -244,6 +269,7 @@ config APP_LCD_RGB_PIN_DISP_EN
         Some RGB panels have a display enable signal. Set to -1 if not used.
 
 endmenu
+
 
 choice APP_TOUCH_DRIVER
     prompt "Touch driver"

@@ -6,6 +6,20 @@
 #include "esp_lvgl_port.h"
 #include "esp_heap_caps.h"
 
+#if CONFIG_APP_DISPLAY_LGFX
+    // Forward declare LGFX accessor from app_display_lgfx.cpp
+    extern void* app_display_get_lgfx(void);
+
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+    // LGFX flush callback - implemented below
+    static void lgfx_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
+    #ifdef __cplusplus
+    }
+    #endif
+#endif
+
 static const char *TAG = "app_lvgl";
 
 // Flush callback for RGB panels
@@ -20,6 +34,34 @@ static void rgb_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_
     lv_display_flush_ready(disp);
 }
 
+#if CONFIG_APP_DISPLAY_LGFX
+// Flush callback for LovyanGFX
+// Note: This is a C function that calls C++ LovyanGFX methods
+// The actual implementation must handle the C/C++ boundary carefully
+static void lgfx_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
+{
+    // LGFX instance is stored as user data
+    void *lgfx = lv_display_get_user_data(disp);
+    if (!lgfx) {
+        lv_display_flush_ready(disp);
+        return;
+    }
+
+    // Call the C++ wrapper to push pixels
+    // We'll define this in app_display_lgfx.cpp
+    extern void lgfx_push_pixels(void *lgfx, int x1, int y1, int x2, int y2, const uint8_t *data);
+
+    int x1 = area->x1;
+    int y1 = area->y1;
+    int x2 = area->x2 + 1;
+    int y2 = area->y2 + 1;
+
+    lgfx_push_pixels(lgfx, x1, y1, x2, y2, px_map);
+
+    lv_display_flush_ready(disp);
+}
+#endif
+
 esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
                                 const esp_lcd_panel_io_handle_t io,
                                 esp_lcd_touch_handle_t tp_or_null,
@@ -33,6 +75,62 @@ esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
 
     lv_disp_t *disp = NULL;
 
+#if CONFIG_APP_DISPLAY_LGFX
+    // LovyanGFX integration
+    {
+        lvgl_port_lock(0);
+
+        lv_display_t *lv_disp = lv_display_create(CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES);
+        if (!lv_disp) {
+            lvgl_port_unlock();
+            ESP_RETURN_ON_ERROR(ESP_FAIL, TAG, "lv_display_create failed");
+        }
+
+        // Store LGFX instance for flush callback
+        lv_display_set_user_data(lv_disp, app_display_get_lgfx());
+
+        // Set color format
+        lv_display_set_color_format(lv_disp, LV_COLOR_FORMAT_RGB565);
+
+        // Allocate buffers (use PSRAM for large displays)
+        size_t buf_size = CONFIG_APP_LCD_HRES * CONFIG_APP_LVGL_BUF_LINES * 2;
+        uint32_t caps = (CONFIG_APP_LCD_HRES >= 800) ? MALLOC_CAP_SPIRAM : MALLOC_CAP_DMA;
+
+        void *buf1 = heap_caps_malloc(buf_size, caps);
+        if (!buf1) {
+            lvgl_port_unlock();
+            ESP_RETURN_ON_ERROR(ESP_ERR_NO_MEM, TAG, "Buffer 1 alloc failed");
+        }
+
+        void *buf2 = NULL;
+#ifdef CONFIG_APP_LVGL_DOUBLE_BUFFER
+        buf2 = heap_caps_malloc(buf_size, caps);
+        if (!buf2) {
+            free(buf1);
+            lvgl_port_unlock();
+            ESP_RETURN_ON_ERROR(ESP_ERR_NO_MEM, TAG, "Buffer 2 alloc failed");
+        }
+#endif
+
+        lv_display_set_buffers(lv_disp, buf1, buf2, buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
+        lv_display_set_flush_cb(lv_disp, lgfx_flush_cb);
+
+        // Apply rotation settings
+        if (CONFIG_APP_ROT_SWAP_XY || CONFIG_APP_ROT_MIRROR_X || CONFIG_APP_ROT_MIRROR_Y) {
+            ESP_LOGI(TAG, "LGFX rotation: swap_xy=%d, mirror_x=%d, mirror_y=%d",
+                     CONFIG_APP_ROT_SWAP_XY, CONFIG_APP_ROT_MIRROR_X, CONFIG_APP_ROT_MIRROR_Y);
+            // Note: LGFX handles rotation internally via setRotation()
+        }
+
+        // Make this the default display
+        lv_display_set_default(lv_disp);
+
+        lvgl_port_unlock();
+
+        disp = lv_disp;
+        ESP_LOGI(TAG, "LVGL ready (LGFX, %d KB%s)", (int)(buf_size/1024), buf2 ? " x2" : "");
+    }
+#else
     if (io == NULL) {
         // RGB panel: use raw LVGL API
         lvgl_port_lock(0);
@@ -121,8 +219,9 @@ esp_err_t app_lvgl_init_and_add(const esp_lcd_panel_handle_t panel,
         ESP_RETURN_ON_FALSE(disp, ESP_FAIL, TAG, "lvgl_port_add_disp failed");
         ESP_LOGI(TAG, "LVGL ready (SPI)");
     }
+#endif  // !CONFIG_APP_DISPLAY_LGFX
 
-    // Add touch (works for both)
+    // Add touch (works for all)
     lv_indev_t *indev = NULL;
     if (tp_or_null) {
         const lvgl_port_touch_cfg_t touch_cfg = {

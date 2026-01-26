@@ -79,6 +79,14 @@ dependencies:
     source:
       type: idf
     version: 5.5.2
+  lovyan03/lovyangfx:
+    component_hash: 15db170773c639524bdc9b15838f4b3c507f1a497a88365055d9ea71b126ac8b
+    dependencies: []
+    source:
+      git: https://github.com/lovyan03/LovyanGFX
+      path: .
+      type: git
+    version: 6f6e9a052fc719ecb2b42640b0207215050d2560
   lvgl/lvgl:
     component_hash: 17e68bfd21f0edf4c3ee838e2273da840bf3930e5dbc3bfa6c1190c3aed41f9f
     dependencies: []
@@ -91,7 +99,8 @@ direct_dependencies:
 - espressif/esp_lcd_ili9341
 - espressif/esp_lcd_touch_gt911
 - espressif/esp_lvgl_port
+- lovyan03/lovyangfx
 - lvgl/lvgl
-manifest_hash: 8806dc67b98f32fe946a5a76037cc6a590e5a580b7c3645d1594b4ffcc7f55ee
+manifest_hash: 88e64a7497da9604e988e4d61b59d4d0cdef64fbd7419ea74055b8c68c691798
 target: esp32s3
 version: 2.0.0

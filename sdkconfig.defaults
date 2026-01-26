@@ -6,3 +6,13 @@
 CONFIG_APP_LVGL_DOUBLE_BUFFER=y
 CONFIG_APP_LVGL_BUFF_DMA=y
 CONFIG_APP_LCD_COLOR_DEPTH=16
+
+# Ensure the system monitor is running for development
+CONFIG_LV_USE_SYSMON=y
+CONFIG_LV_USE_PERF_MONITOR=y
+
+# Slow down the kernel panic reset
+CONFIG_ESP_SYSTEM_PANIC_REBOOT_DELAY_SECONDS=5
+
+# Lower this to allow LVGL to run faster, usually set to 33ms (30fps)
+CONFIG_LV_DEF_REFR_PERIOD=5
