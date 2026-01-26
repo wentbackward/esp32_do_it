@@ -455,7 +455,7 @@ void ui_hwtest_init(const hwtest_cfg_t *cfg)
     // Test button (for click testing)
     ESP_LOGI(TAG, "Create test button");
     lv_obj_t *test_btn = lv_button_create(scr);
-    lv_obj_set_size(test_btn, 160, 60);
+    lv_obj_set_size(test_btn, 120, 26);
     lv_obj_align(test_btn, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_event_cb(test_btn, test_btn_cb, LV_EVENT_CLICKED, NULL);
 

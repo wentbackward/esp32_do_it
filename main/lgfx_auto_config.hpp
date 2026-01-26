@@ -21,6 +21,7 @@ class LGFX : public lgfx::LGFX_Device
 {
     lgfx::Panel_ILI9341 _panel_instance;
     lgfx::Bus_SPI       _bus_instance;
+    lgfx::Light_PWM     _light_instance;
 
 public:
     LGFX(void)
@@ -31,7 +32,7 @@ public:
             cfg.spi_host = (spi_host_device_t)CONFIG_APP_LCD_SPI_HOST;
             cfg.spi_mode = 0;
             cfg.freq_write = CONFIG_APP_LCD_SPI_CLOCK_HZ;
-            cfg.freq_read  = 16000000;
+            cfg.freq_read  = CONFIG_APP_LCD_SPI_CLOCK_HZ;
             cfg.spi_3wire  = false;
             cfg.use_lock   = true;
             cfg.dma_channel = SPI_DMA_CH_AUTO;
@@ -47,6 +48,14 @@ public:
         {
             auto cfg = _panel_instance.config();
 
+            #ifdef CONFIG_APP_LCD_PIN_CS
+            cfg.pin_cs = CONFIG_APP_LCD_PIN_CS;
+            #endif
+
+            #ifdef CONFIG_APP_LCD_PIN_RST
+            cfg.pin_rst = CONFIG_APP_LCD_PIN_RST;
+            #endif
+
             cfg.memory_width  = CONFIG_APP_LCD_HRES;
             cfg.memory_height = CONFIG_APP_LCD_VRES;
             cfg.panel_width   = CONFIG_APP_LCD_HRES;
@@ -58,14 +67,29 @@ public:
             cfg.dummy_read_pixel = 8;
             cfg.dummy_read_bits = 1;
             cfg.readable = true;
-            cfg.invert = CONFIG_APP_LCD_INVERT_DEFAULT;
+            cfg.invert = false;
             cfg.rgb_order = !CONFIG_APP_LCD_BGR;
             cfg.dlen_16bit = false;
             cfg.bus_shared = true;
 
             _panel_instance.config(cfg);
         }
+        
+        if (CONFIG_APP_LCD_PIN_BL >= 0) {
+        #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
+        {
+            auto cfg = _light_instance.config();
 
+            cfg.pin_bl = CONFIG_APP_LCD_PIN_BL;      // Backlight PWM pin
+            cfg.invert = false;
+            cfg.freq   = CONFIG_APP_LCD_BL_PWM_FREQ_HZ;
+            cfg.pwm_channel = 0;
+
+            _light_instance.config(cfg);
+            _panel_instance.setLight(&_light_instance);
+        }
+        #endif
+        }
         setPanel(&_panel_instance);
     }
 };

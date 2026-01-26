@@ -138,12 +138,12 @@ esp_err_t app_display_init(app_display_t *out)
                  initial_duty, s_bl_max_duty, CONFIG_APP_LCD_BL_DEFAULT_DUTY);
 #else
         // Simple on/off mode
-        // gpio_config_t bk = {
-        //     .pin_bit_mask = 1ULL << CONFIG_APP_LCD_PIN_BL,
-        //     .mode = GPIO_MODE_OUTPUT,
-        // };
-        // ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
-        // gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
+        gpio_config_t bk = {
+            .pin_bit_mask = 1ULL << CONFIG_APP_LCD_PIN_BL,
+            .mode = GPIO_MODE_OUTPUT,
+        };
+        ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
+        gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
 
         ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel, true), TAG, "disp_on");
         ESP_LOGI(TAG, "Backlight: simple on/off (GPIO %d)", CONFIG_APP_LCD_PIN_BL);

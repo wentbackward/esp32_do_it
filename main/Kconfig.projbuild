@@ -67,6 +67,11 @@ config APP_LCD_INVERT_DEFAULT
     bool "Send invert command at init (ILI9341: 0x21)"
     default n
 
+config APP_LCD_ROTATION_DEFAULT
+    int "The default rotation of the panel"
+    range 0 3
+    default 0
+
 config APP_LCD_SWAP_BYTES
     bool "Swap bytes in LVGL flush (RGB565 endianness)"
     default y
@@ -100,8 +105,27 @@ config APP_LCD_BL_DEFAULT_DUTY
     range 0 100
 endmenu
 
+menu "Display: LovyanGFX"
+depends on APP_DISPLAY_LGFX
+
+choice APP_LGFX_PANEL_TYPE
+    prompt "LovyanGFX panel type"
+    default APP_LGFX_PANEL_RGB
+    help
+        Select which panel type to use with LovyanGFX.
+
+config APP_LGFX_PANEL_RGB
+    bool "RGB parallel panel"
+
+config APP_LGFX_PANEL_SPI
+    bool "SPI panel (ILI9341, ST7789, etc.)"
+
+endchoice
+
+endmenu
+
 menu "Display: SPI (for ILI9341)"
-depends on APP_DISPLAY_ILI9341_SPI
+depends on APP_DISPLAY_ILI9341_SPI || APP_LGFX_PANEL_SPI
 
 config APP_LCD_SPI_HOST
     int "SPI host id (2=SPI2_HOST, 3=SPI3_HOST)"
@@ -133,24 +157,6 @@ config APP_LCD_PIN_RST
 
 endmenu
 
-menu "Display: LovyanGFX"
-depends on APP_DISPLAY_LGFX
-
-choice APP_LGFX_PANEL_TYPE
-    prompt "LovyanGFX panel type"
-    default APP_LGFX_PANEL_RGB
-    help
-        Select which panel type to use with LovyanGFX.
-
-config APP_LGFX_PANEL_RGB
-    bool "RGB parallel panel"
-
-config APP_LGFX_PANEL_SPI
-    bool "SPI panel (ILI9341, ST7789, etc.)"
-
-endchoice
-
-endmenu
 
 menu "Display: RGB Parallel Pins"
 depends on APP_DISPLAY_RGB_PARALLEL || APP_LGFX_PANEL_RGB

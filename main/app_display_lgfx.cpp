@@ -29,15 +29,15 @@ static uint32_t s_bl_max_duty = 0;
 // something for the interface compatibility
 static esp_lcd_panel_handle_t s_stub_panel = (esp_lcd_panel_handle_t)0x1;
 
-bool app_display_set_invert(void *ctx, bool on)
+bool app_display_set_invert(void *ctx, bool on_off)
 {
     if (!s_lgfx) {
         ESP_LOGW(TAG, "LGFX not initialized");
         return false;
     }
 
-    s_lgfx->invertDisplay(on);
-    ESP_LOGI(TAG, "Display invert: %s", on ? "ON" : "OFF");
+    s_lgfx->invertDisplay(on_off);
+    ESP_LOGI(TAG, "Display invert: %s", on_off ? "ON" : "OFF");
     return true;
 }
 
@@ -61,6 +61,7 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
 {
     ESP_RETURN_ON_FALSE(out, ESP_ERR_INVALID_ARG, TAG, "null out");
 
+#if CONFIG_APP_LGFX_PANEL_RGB
     // GPIO 38: Control signal (purpose unclear, but required for Elecrow board)
     gpio_config_t ctrl_cfg = {
         .pin_bit_mask = (1ULL << 38),
@@ -72,18 +73,12 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
     ESP_RETURN_ON_ERROR(gpio_config(&ctrl_cfg), TAG, "gpio_config GPIO38");
     gpio_set_level((gpio_num_t)38, 0);  // LOW per Elecrow example
     ESP_LOGI(TAG, "GPIO 38 (control) set LOW");
+#endif
 
     // Create LovyanGFX instance
     s_lgfx = new LGFX();
     if (!s_lgfx) {
         ESP_RETURN_ON_ERROR(ESP_ERR_NO_MEM, TAG, "Failed to create LGFX instance");
-    }
-
-    // Initialize the display
-    if (!s_lgfx->init()) {
-        delete s_lgfx;
-        s_lgfx = nullptr;
-        ESP_RETURN_ON_ERROR(ESP_FAIL, TAG, "LGFX init failed");
     }
 
     #if CONFIG_APP_LCD_SWAP_BYTES
@@ -93,54 +88,34 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
     #endif
 
     // Set initial rotation and color depth
-    s_lgfx->setRotation(0);
+    s_lgfx->setRotation(CONFIG_APP_LCD_ROTATION_DEFAULT);
     s_lgfx->setColorDepth(CONFIG_APP_LCD_COLOR_DEPTH);
 
 
+    // Initialize the display
+    if (!s_lgfx->init()) {
+        delete s_lgfx;
+        s_lgfx = nullptr;
+        ESP_RETURN_ON_ERROR(ESP_FAIL, TAG, "LGFX init failed");
+    }
 
-    ESP_LOGI(TAG, "LovyanGFX initialized: %dx%d", s_lgfx->width(), s_lgfx->height());    
+    ESP_LOGI(TAG, "LovyanGFX initialized: %dx%d", s_lgfx->width(), s_lgfx->height());
 
-#ifdef CONFIG_APP_LCD_INVERT_DEFAULT
-    if (CONFIG_APP_LCD_INVERT_DEFAULT) {
+    #if CONFIG_APP_LCD_INVERT_DEFAULT
         s_lgfx->invertDisplay(true);
         ESP_LOGI(TAG, "Display invert enabled by default");
-    }
-#endif
+    #else
+        s_lgfx->invertDisplay(false);
+        ESP_LOGI(TAG, "Display invert disabled");
+    #endif
 
-    // Backlight PWM setup
+    // Backlight setup - must be after init()
     if (CONFIG_APP_LCD_PIN_BL >= 0) {
 #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
-        // Configure LEDC timer
-        ledc_timer_config_t ledc_timer = {
-            .speed_mode       = LEDC_LOW_SPEED_MODE,
-            .duty_resolution  = (ledc_timer_bit_t)CONFIG_APP_LCD_BL_PWM_RESOLUTION,
-            .timer_num        = LEDC_TIMER_0,
-            .freq_hz          = CONFIG_APP_LCD_BL_PWM_FREQ_HZ,
-            .clk_cfg          = LEDC_AUTO_CLK
-        };
-        ESP_RETURN_ON_ERROR(ledc_timer_config(&ledc_timer), TAG, "ledc_timer_config");
-
-        // Calculate max duty and initial brightness
-        s_bl_max_duty = (1 << CONFIG_APP_LCD_BL_PWM_RESOLUTION) - 1;
-        uint32_t initial_duty = (s_bl_max_duty * CONFIG_APP_LCD_BL_DEFAULT_DUTY) / 100;
-
-        // Configure LEDC channel with initial duty
-        ledc_channel_config_t ledc_channel = {
-            .gpio_num   = CONFIG_APP_LCD_PIN_BL,
-            .speed_mode = LEDC_LOW_SPEED_MODE,
-            .channel    = s_bl_ledc_channel,
-            .intr_type  = LEDC_INTR_DISABLE,
-            .timer_sel  = LEDC_TIMER_0,
-            .duty       = initial_duty,
-            .hpoint     = 0
-        };
-        ESP_RETURN_ON_ERROR(ledc_channel_config(&ledc_channel), TAG, "ledc_channel_config");
-
-        app_display_set_backlight_percent(CONFIG_APP_LCD_BL_DEFAULT_DUTY);
-
-        ESP_LOGI(TAG, "Backlight PWM: %dHz, %d-bit, duty=%"PRIu32"/%"PRIu32" (%d%%)",
-                 CONFIG_APP_LCD_BL_PWM_FREQ_HZ, CONFIG_APP_LCD_BL_PWM_RESOLUTION,
-                 initial_duty, s_bl_max_duty, CONFIG_APP_LCD_BL_DEFAULT_DUTY);
+        // LGFX handles PWM backlight via Light_PWM instance configured in lgfx_auto_config.hpp
+        uint8_t brightness = CONFIG_APP_LCD_BL_DEFAULT_DUTY;
+        s_lgfx->setBrightness(brightness);
+        ESP_LOGI(TAG, "Backlight PWM: %d%% (LGFX managed)", brightness);
 #else
         // Simple on/off mode
         gpio_config_t bk = {
@@ -151,7 +126,7 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
             .intr_type = GPIO_INTR_DISABLE,
         };
         ESP_RETURN_ON_ERROR(gpio_config(&bk), TAG, "bk gpio_config");
-        gpio_set_level(CONFIG_APP_LCD_PIN_BL, 1);
+        gpio_set_level((gpio_num_t)CONFIG_APP_LCD_PIN_BL, 1);
 
         ESP_LOGI(TAG, "Backlight: simple on/off (GPIO %d)", CONFIG_APP_LCD_PIN_BL);
 #endif
@@ -159,6 +134,8 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
         ESP_LOGI(TAG, "No backlight GPIO configured");
     }
 
+
+    // ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(s_stub_panel, true), TAG, "disp_on");
     // Return stub handles for HAL compatibility
     out->panel = s_stub_panel;
     out->io = nullptr;  // LGFX doesn't use separate IO layer
@@ -170,9 +147,17 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
 #ifdef CONFIG_APP_LCD_BL_PWM_ENABLE
 bool app_display_set_backlight_percent(uint8_t percent)
 {
+    if (!s_lgfx) {
+        ESP_LOGW(TAG, "LGFX not initialized");
+        return false;
+    }
+
     if (percent > 100) percent = 100;
-    uint32_t duty = (s_bl_max_duty * percent) / 100;
-    return app_display_set_backlight_duty(duty) == ESP_OK;
+
+    s_lgfx->setBrightness(percent);
+    // uint32_t duty = (s_bl_max_duty * percent) / 100;
+    // return app_display_set_backlight_duty(duty) == ESP_OK;
+    return true;
 }
 
 esp_err_t app_display_set_backlight_duty(uint32_t duty)
