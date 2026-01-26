@@ -94,7 +94,7 @@ extern "C" esp_err_t app_display_init(app_display_t *out)
 
     // Set initial rotation and color depth
     s_lgfx->setRotation(0);
-    s_lgfx->setColorDepth(16);  // RGB565
+    s_lgfx->setColorDepth(CONFIG_APP_LCD_COLOR_DEPTH);
 
 
 
