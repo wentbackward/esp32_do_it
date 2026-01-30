@@ -6,7 +6,9 @@
       "WebFetch(domain:github.com)",
       "Bash(del sdkconfig)",
       "Bash(idf.py fullclean:*)",
-      "Bash(idf.py:*)"
+      "Bash(idf.py:*)",
+      "WebSearch",
+      "WebFetch(domain:components.espressif.com)"
     ]
   }
 }

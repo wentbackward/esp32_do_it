@@ -159,6 +159,9 @@ void app_main(void)
     #if LV_USE_DEMO_BENCHMARK
         ESP_LOGI(TAG, "Running LVGL Benchmark");
         lv_demo_benchmark();
+    #elif LV_USE_DEMO_STRESS
+        ESP_LOGI(TAG, "Running LVGL Stress Test");
+        lv_demo_stress();
     #elif LV_USE_DEMO_MUSIC
         ESP_LOGI(TAG, "Running LVGL Music Demo");
         lv_demo_music();
