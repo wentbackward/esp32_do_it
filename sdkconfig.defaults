@@ -1,11 +1,11 @@
 # Common settings for all boards
 
-# UI mode - default to hardware test for board bringup
-#CONFIG_APP_UI_HWTEST=y
+# Application version
+CONFIG_APP_VERSION="V0.2"
 
 # Ensure the system monitor is running for development
-CONFIG_LV_USE_SYSMON=y
-CONFIG_LV_USE_PERF_MONITOR=y
+CONFIG_LV_USE_SYSMON=n
+CONFIG_LV_USE_PERF_MONITOR=n
 
 # Slow down the kernel panic reset
 CONFIG_ESP_SYSTEM_PANIC_REBOOT_DELAY_SECONDS=5

@@ -7,7 +7,7 @@ set(SRCS
 
 # Display drivers
 if(CONFIG_APP_DISPLAY_ILI9341_SPI)
-    list(APPEND SRCS "app_display_ili9341.c")
+    list(APPEND SRCS "trackpad_gesture.c" "app_display_ili9341.c")
 elseif(CONFIG_APP_DISPLAY_RGB_PARALLEL)
     list(APPEND SRCS "app_display_rgb.c")
 elseif(CONFIG_APP_DISPLAY_LGFX)

@@ -146,7 +146,47 @@ esp_err_t app_hid_trackpad_send_click(app_hid_t *hid, uint8_t buttons)
 
     // Send mouse report with button state (no movement)
     bool sent = tud_hid_mouse_report(0, buttons, 0, 0, 0, 0);
-    ESP_LOGI(TAG, "Mouse click (buttons=0x%02X) sent=%d", buttons, sent);
+    ESP_LOGD(TAG, "Mouse click (buttons=0x%02X) sent=%d", buttons, sent);
+
+    return ESP_OK;
+}
+
+esp_err_t app_hid_trackpad_send_scroll(app_hid_t *hid, int8_t vertical, int8_t horizontal)
+{
+    if (!hid) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!tud_hid_ready()) {
+        return ESP_ERR_NOT_FINISHED;
+    }
+
+    // Send mouse report with scroll only (no movement, no buttons)
+    bool sent = tud_hid_mouse_report(0, 0, 0, 0, vertical, horizontal);
+    ESP_LOGD(TAG, "Mouse scroll (v=%d, h=%d) sent=%d", vertical, horizontal, sent);
+
+    return ESP_OK;
+}
+
+esp_err_t app_hid_trackpad_send_report(app_hid_t *hid, uint8_t buttons,
+                                        int16_t dx, int16_t dy,
+                                        int8_t scroll_v, int8_t scroll_h)
+{
+    if (!hid) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!tud_hid_ready()) {
+        return ESP_ERR_NOT_FINISHED;
+    }
+
+    // Clamp deltas to int8_t range [-127, 127]
+    int8_t dx_clamped = (dx > 127) ? 127 : (dx < -127) ? -127 : (int8_t)dx;
+    int8_t dy_clamped = (dy > 127) ? 127 : (dy < -127) ? -127 : (int8_t)dy;
+
+    bool sent = tud_hid_mouse_report(0, buttons, dx_clamped, dy_clamped, scroll_v, scroll_h);
+    ESP_LOGD(TAG, "Mouse report (btn=0x%02X, dx=%d, dy=%d, sv=%d, sh=%d) sent=%d",
+             buttons, dx_clamped, dy_clamped, scroll_v, scroll_h, sent);
 
     return ESP_OK;
 }

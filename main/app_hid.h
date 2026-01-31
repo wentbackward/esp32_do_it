@@ -51,6 +51,31 @@ esp_err_t app_hid_trackpad_send_move(app_hid_t *hid, int16_t dx, int16_t dy);
  * @return ESP_OK on success, ESP_ERR_NOT_FINISHED if USB not ready
  */
 esp_err_t app_hid_trackpad_send_click(app_hid_t *hid, uint8_t buttons);
+
+/**
+ * @brief Send mouse scroll
+ *
+ * @param hid HID handle
+ * @param vertical Vertical scroll amount (negative=down, positive=up)
+ * @param horizontal Horizontal scroll amount (negative=left, positive=right)
+ * @return ESP_OK on success, ESP_ERR_NOT_FINISHED if USB not ready
+ */
+esp_err_t app_hid_trackpad_send_scroll(app_hid_t *hid, int8_t vertical, int8_t horizontal);
+
+/**
+ * @brief Send combined mouse report (movement + buttons + scroll)
+ *
+ * @param hid HID handle
+ * @param buttons Button bitmask
+ * @param dx X movement delta
+ * @param dy Y movement delta
+ * @param scroll_v Vertical scroll
+ * @param scroll_h Horizontal scroll
+ * @return ESP_OK on success, ESP_ERR_NOT_FINISHED if USB not ready
+ */
+esp_err_t app_hid_trackpad_send_report(app_hid_t *hid, uint8_t buttons,
+                                        int16_t dx, int16_t dy,
+                                        int8_t scroll_v, int8_t scroll_h);
 #endif // CONFIG_APP_HID_MODE_TRACKPAD
 
 #if CONFIG_APP_HID_MODE_MACROPAD

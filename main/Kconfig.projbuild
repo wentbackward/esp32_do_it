@@ -1,5 +1,11 @@
 menu "App: Display + Touch + LVGL Template"
 
+config APP_VERSION
+    string "Application version"
+    default "V0.0"
+    help
+        Version string for the application.
+
 choice APP_UI_MODE
     prompt "UI mode"
     default APP_UI_HWTEST

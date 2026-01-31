@@ -87,7 +87,7 @@ void app_main(void)
     esp_chip_info_t chip_info;
     uint32_t flash_size;
     esp_chip_info(&chip_info);
-    
+    ESP_LOGI(TAG, "App version: %s", CONFIG_APP_VERSION);    
     esp_flash_get_size(NULL, &flash_size);
     ESP_LOGI(TAG, "%s cores=%d rev=%d flash=%" PRIu32 "MB",
              CONFIG_IDF_TARGET, chip_info.cores, chip_info.revision,
@@ -198,7 +198,12 @@ void app_main(void)
     ui_hwtest_init(&hwcfg);
 #elif CONFIG_APP_UI_TRACKPAD
     ESP_LOGI(TAG, "Running Trackpad UI");
-    trackpad_cfg_t cfg = {CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES, &hid};
+    trackpad_cfg_t cfg = {
+        .hres = CONFIG_APP_LCD_HRES,
+        .vres = CONFIG_APP_LCD_VRES,
+        .hid = &hid,
+        .mode_switch_cb = NULL,  // TODO: Add mode switching when macropad UI is integrated
+    };
     ui_trackpad_init(&cfg);
 #elif CONFIG_APP_UI_MACROPAD
     ESP_LOGI(TAG, "Running Macropad UI");

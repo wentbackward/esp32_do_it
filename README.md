@@ -100,6 +100,47 @@ If your display parameters are correct, you should see LVGL output immediately.
 
 ---
 
+## Features
+
+This project includes production-ready implementations beyond the basic template:
+
+### 🖱️ **USB HID Support**
+Complete USB HID implementation for multiple device types:
+
+- **Trackpad Mode**: Touch display acts as USB mouse/trackpad
+  - Pointer movement with dual-phase acceleration
+  - Tap-to-click with swipe cancellation
+  - Click-and-drag (tap-tap-drag gesture)
+  - Edge scroll zones (vertical/horizontal)
+  - Comprehensive gesture recognition
+  - 📖 See [`docs/TRACKPAD.md`](docs/TRACKPAD.md) for full documentation
+
+- **Keyboard Mode**: Custom keyboard layouts and macros
+- **Macropad Mode**: Programmable macro keys
+
+**Documentation:**
+- [`docs/TRACKPAD.md`](docs/TRACKPAD.md) - Trackpad feature guide
+- [`docs/TRACKPAD_TESTING.md`](docs/TRACKPAD_TESTING.md) - Test architecture
+- [`docs/TRACKPAD_INTEGRATION_GUIDE.md`](docs/TRACKPAD_INTEGRATION_GUIDE.md) - Integration guide
+
+### 🧪 **Comprehensive Testing**
+The trackpad gesture recognition includes 47+ automated unit tests:
+- Pure function tests (no hardware needed)
+- Gesture sequence tests (tap, drag, scroll)
+- Host-compilable tests for fast iteration
+- See [`test/README.md`](test/README.md) for running tests
+
+### 🎨 **Hardware Test UI**
+LVGL-based diagnostics UI with:
+- Auto-calculated proportional grid
+- Touch coordinate display
+- Color accuracy swatches
+- Orientation verification
+- FPS counter
+- Backlight/invert controls (when supported)
+
+---
+
 ## Project Structure
 
 ```text
