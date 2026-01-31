@@ -53,3 +53,24 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 
 CONFIG_APP_LVGL_DOUBLE_BUFFER=y
 CONFIG_APP_LVGL_BUFF_DMA=y
+
+# HID mode (disabled by default - uncomment to enable)
+# ESP32-S3 uses GPIO 19/20 for USB D+/D- (hardware fixed)
+# Note: HID modes replace standard UI modes. Only one can be active.
+
+# Trackpad mode - Touch panel acts as USB mouse
+CONFIG_APP_HID_MODE_TRACKPAD=y
+CONFIG_APP_UI_TRACKPAD=y
+CONFIG_APP_HID_TRACKPAD_SENSITIVITY=2
+CONFIG_APP_HID_TRACKPAD_TAP_THRESHOLD_MS=200
+
+# Macropad mode - Button grid sends keyboard keys
+# CONFIG_APP_HID_MODE_MACROPAD=y
+# CONFIG_APP_UI_MACROPAD=y
+# CONFIG_APP_HID_MACROPAD_ROWS=3
+# CONFIG_APP_HID_MACROPAD_COLS=4
+
+# Gamepad mode - D-pad and action buttons as USB gamepad
+# CONFIG_APP_HID_MODE_GAMEPAD=y
+# CONFIG_APP_UI_GAMEPAD=y
+# CONFIG_APP_HID_GAMEPAD_BUTTON_COUNT=4

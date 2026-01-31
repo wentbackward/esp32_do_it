@@ -11,4 +11,10 @@ CONFIG_LV_USE_PERF_MONITOR=y
 CONFIG_ESP_SYSTEM_PANIC_REBOOT_DELAY_SECONDS=5
 
 # Lower this to allow LVGL to run faster, usually set to 33ms (30fps)
-CONFIG_LV_DEF_REFR_PERIOD=1
+CONFIG_LV_DEF_REFR_PERIOD=15
+
+# TinyUSB - Enable both CDC (serial console) and HID (trackpad/gamepad/macropad)
+# Temporarily disabled for programming - re-enable after testing
+CONFIG_TINYUSB_CDC_ENABLED=y
+CONFIG_TINYUSB_CDC_COUNT=1
+CONFIG_TINYUSB_HID_COUNT=1

@@ -8,6 +8,7 @@ choice APP_UI_MODE
 
 config APP_UI_HW_DISPLAY_TEST
     bool "Hardware Display Test (no LVGL - RGB panel validation)"
+    depends on APP_HID_MODE_NONE
     help
         Tests RGB display hardware directly without LVGL.
         Shows: Red -> Green -> Blue -> Color bars.
@@ -15,10 +16,22 @@ config APP_UI_HW_DISPLAY_TEST
 
 config APP_UI_SIMPLE
     bool "Simple UI (bars + button)"
+    depends on APP_HID_MODE_NONE
 config APP_UI_HWTEST
     bool "Hardware test UI with LVGL"
+    depends on APP_HID_MODE_NONE
 config APP_UI_DEMO
     bool "LVGL demo widgets (requires LVGL demos enabled)"
+    depends on APP_HID_MODE_NONE
+config APP_UI_TRACKPAD
+    bool "Trackpad UI (USB mouse)"
+    depends on APP_HID_MODE_TRACKPAD
+config APP_UI_MACROPAD
+    bool "Macropad UI (USB keyboard)"
+    depends on APP_HID_MODE_MACROPAD
+config APP_UI_GAMEPAD
+    bool "Gamepad UI (USB gamepad)"
+    depends on APP_HID_MODE_GAMEPAD
 endchoice
 
 choice APP_DISPLAY_DRIVER
@@ -346,6 +359,78 @@ config APP_TOUCH_PIN_INT
     int "Touch INT GPIO"
     default 17
     depends on APP_TOUCH_USE_INT_PIN
+endmenu
+
+choice APP_HID_MODE
+    prompt "HID mode"
+    default APP_HID_MODE_NONE
+    help
+        Select USB HID device mode. ESP32-S3 uses GPIO 19/20 for USB D+/D-.
+
+config APP_HID_MODE_NONE
+    bool "No HID (display-only)"
+
+config APP_HID_MODE_TRACKPAD
+    bool "Trackpad (USB mouse)"
+    help
+        Touch panel acts as USB mouse. Drag to move, tap to click.
+
+config APP_HID_MODE_MACROPAD
+    bool "Macropad (USB keyboard)"
+    help
+        Button grid sends keyboard keys. Mappings stored in NVS.
+
+config APP_HID_MODE_GAMEPAD
+    bool "Gamepad (USB gamepad)"
+    help
+        D-pad and action buttons as USB gamepad.
+
+endchoice
+
+menu "HID: Trackpad"
+depends on APP_HID_MODE_TRACKPAD
+
+config APP_HID_TRACKPAD_SENSITIVITY
+    int "Sensitivity (1-10)"
+    range 1 10
+    default 2
+    help
+        Movement sensitivity multiplier. Higher = faster cursor.
+
+config APP_HID_TRACKPAD_TAP_THRESHOLD_MS
+    int "Tap threshold (ms)"
+    range 50 500
+    default 200
+    help
+        Maximum duration for tap-to-click detection.
+
+endmenu
+
+menu "HID: Macropad"
+depends on APP_HID_MODE_MACROPAD
+
+config APP_HID_MACROPAD_ROWS
+    int "Button rows"
+    range 2 4
+    default 3
+
+config APP_HID_MACROPAD_COLS
+    int "Button columns"
+    range 2 4
+    default 4
+
+endmenu
+
+menu "HID: Gamepad"
+depends on APP_HID_MODE_GAMEPAD
+
+config APP_HID_GAMEPAD_BUTTON_COUNT
+    int "Action buttons"
+    range 2 8
+    default 4
+    help
+        Number of action buttons (beyond D-pad). Currently supports 4 (A/B/X/Y).
+
 endmenu
 
 menu "LVGL port tuning"

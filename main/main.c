@@ -24,6 +24,17 @@
     #include "app_touch_gt911.h"
 #endif
 
+#if CONFIG_APP_HID_MODE_TRACKPAD
+    #include "app_hid.h"
+    #include "ui_trackpad.h"
+#elif CONFIG_APP_HID_MODE_MACROPAD
+    #include "app_hid.h"
+    #include "ui_macropad.h"
+#elif CONFIG_APP_HID_MODE_GAMEPAD
+    #include "app_hid.h"
+    #include "ui_gamepad.h"
+#endif
+
 #if CONFIG_APP_UI_HW_DISPLAY_TEST
     #include "hw_display_test.h"
 #else
@@ -85,6 +96,13 @@ void app_main(void)
     // Display
     app_display_t disp_hw = {0};
     ESP_ERROR_CHECK(app_display_init(&disp_hw));
+
+#if !defined(CONFIG_APP_HID_MODE_NONE)
+    // HID initialization (USB device)
+    app_hid_t hid = {0};
+    ESP_LOGI(TAG, "Initializing USB HID device");
+    ESP_ERROR_CHECK(app_hid_init(&hid));
+#endif
 
 #if CONFIG_APP_UI_HW_DISPLAY_TEST
     // Hardware display test mode (no LVGL)
@@ -178,6 +196,19 @@ void app_main(void)
 #elif CONFIG_APP_UI_HWTEST
     ESP_LOGI(TAG, "Running UI HWTEST");
     ui_hwtest_init(&hwcfg);
+#elif CONFIG_APP_UI_TRACKPAD
+    ESP_LOGI(TAG, "Running Trackpad UI");
+    trackpad_cfg_t cfg = {CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES, &hid};
+    ui_trackpad_init(&cfg);
+#elif CONFIG_APP_UI_MACROPAD
+    ESP_LOGI(TAG, "Running Macropad UI");
+    macropad_cfg_t cfg = {CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES, &hid,
+                          CONFIG_APP_HID_MACROPAD_ROWS, CONFIG_APP_HID_MACROPAD_COLS};
+    ui_macropad_init(&cfg);
+#elif CONFIG_APP_UI_GAMEPAD
+    ESP_LOGI(TAG, "Running Gamepad UI");
+    gamepad_cfg_t cfg = {CONFIG_APP_LCD_HRES, CONFIG_APP_LCD_VRES, &hid};
+    ui_gamepad_init(&cfg);
 #endif
     lvgl_port_unlock();
 

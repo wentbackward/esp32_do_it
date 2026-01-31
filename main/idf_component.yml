@@ -4,6 +4,7 @@ dependencies:
   espressif/esp_lcd_ili9341: "*"
   cfscn/esp_lcd_touch_ft6x36: "*"
   espressif/esp_lcd_touch_gt911: "*"
+  espressif/esp_tinyusb: "~2.0.0"
   lovyan03/lovyangfx:
     git: https://github.com/lovyan03/LovyanGFX
     version: "*"

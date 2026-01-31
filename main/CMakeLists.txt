@@ -21,6 +21,15 @@ elseif(CONFIG_APP_TOUCH_GT911_I2C)
     list(APPEND SRCS "app_touch_gt911.c")
 endif()
 
+# HID drivers (build-time selection)
+if(CONFIG_APP_HID_MODE_TRACKPAD)
+    list(APPEND SRCS "app_hid_trackpad.c" "ui_trackpad.c")
+elseif(CONFIG_APP_HID_MODE_MACROPAD)
+    list(APPEND SRCS "app_hid_macropad.c" "ui_macropad.c")
+elseif(CONFIG_APP_HID_MODE_GAMEPAD)
+    list(APPEND SRCS "app_hid_gamepad.c" "ui_gamepad.c")
+endif()
+
 idf_component_register(
     SRCS ${SRCS}
     INCLUDE_DIRS "."
