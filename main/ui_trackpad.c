@@ -102,9 +102,109 @@ static volatile int32_t s_ui_x = 0;
 static volatile int32_t s_ui_y = 0;
 static volatile bool s_ui_touched = false;
 
+// ========================== Click Queue (Non-blocking) ==========================
+
+// Pending click state (processed over multiple poll cycles)
+static volatile uint8_t s_pending_clicks = 0;      // Number of clicks to send
+static volatile uint8_t s_click_phase = 0;          // 0=idle, 1=pressed, 2=released
+static volatile uint32_t s_click_time = 0;          // Time of last click phase change
+
+#define CLICK_PRESS_MS   10   // How long to hold button down
+#define CLICK_GAP_MS     30   // Gap between clicks in multi-click
+
+/**
+ * @brief Process pending clicks (called each poll cycle, non-blocking)
+ */
+static void process_pending_clicks(uint32_t now)
+{
+    if (s_pending_clicks == 0) return;
+
+    uint32_t elapsed = now - s_click_time;
+
+    if (s_click_phase == 0) {
+        // Start a click - press down
+        app_hid_trackpad_send_click(s_hid, 0x01);
+        s_click_phase = 1;
+        s_click_time = now;
+    } else if (s_click_phase == 1 && elapsed >= CLICK_PRESS_MS) {
+        // Release button
+        app_hid_trackpad_send_click(s_hid, 0x00);
+        s_click_phase = 2;
+        s_click_time = now;
+        s_pending_clicks--;
+    } else if (s_click_phase == 2 && s_pending_clicks > 0 && elapsed >= CLICK_GAP_MS) {
+        // Start next click
+        s_click_phase = 0;
+    } else if (s_click_phase == 2 && s_pending_clicks == 0) {
+        // Done with all clicks
+        s_click_phase = 0;
+    }
+}
+
+/**
+ * @brief Queue clicks (non-blocking)
+ */
+static void queue_clicks(uint8_t count, uint32_t now)
+{
+    s_pending_clicks = count;
+    s_click_phase = 0;
+    s_click_time = now;
+}
+
+/**
+ * @brief Execute HID action based on gesture processor output (non-blocking)
+ */
+static void execute_action(const trackpad_action_t *action, uint32_t now)
+{
+    switch (action->type) {
+        case TRACKPAD_ACTION_MOVE:
+            app_hid_trackpad_send_move(s_hid, action->dx, action->dy);
+            break;
+
+        case TRACKPAD_ACTION_CLICK_DOWN:
+            queue_clicks(1, now);
+            break;
+
+        case TRACKPAD_ACTION_DOUBLE_CLICK:
+            queue_clicks(2, now);
+            break;
+
+        case TRACKPAD_ACTION_TRIPLE_CLICK:
+            queue_clicks(3, now);
+            break;
+
+        case TRACKPAD_ACTION_QUADRUPLE_CLICK:
+            queue_clicks(4, now);
+            break;
+
+        case TRACKPAD_ACTION_DRAG_START:
+            app_hid_trackpad_send_click(s_hid, 0x01);
+            break;
+
+        case TRACKPAD_ACTION_DRAG_MOVE:
+            app_hid_trackpad_send_report(s_hid, 0x01, action->dx, action->dy, 0, 0);
+            break;
+
+        case TRACKPAD_ACTION_DRAG_END:
+            app_hid_trackpad_send_click(s_hid, 0x00);
+            break;
+
+        default:
+            break;
+    }
+}
+
+/**
+ * @brief Get current timestamp in milliseconds
+ */
+static uint32_t get_timestamp_ms(void)
+{
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
+
 /**
  * @brief High-frequency touch polling task
- * Reads touch directly from hardware, sends HID at ~200Hz
+ * Reads touch directly from hardware, processes gestures, sends HID at ~200Hz
  * Completely independent of LVGL refresh rate
  */
 static void touch_poll_task(void *arg)
@@ -121,6 +221,8 @@ static void touch_poll_task(void *arg)
             continue;
         }
 
+        uint32_t now = get_timestamp_ms();
+
         // Read touch directly from hardware
         esp_lcd_touch_read_data(s_touch);
 
@@ -128,37 +230,74 @@ static void touch_poll_task(void *arg)
         uint8_t point_num = 0;
         bool touched = esp_lcd_touch_get_coordinates(s_touch, &x, &y, &strength, &point_num, 1);
 
-        if (touched) {
-            if (s_was_touched) {
-                // Calculate delta
-                int32_t dx = (int32_t)x - s_last_x;
-                int32_t dy = (int32_t)y - s_last_y;
+        // Process through gesture processor
+        trackpad_input_t input;
+        trackpad_action_t action;
 
-                if (dx != 0 || dy != 0) {
-                    // Send HID with 2x sensitivity
-                    app_hid_trackpad_send_move(s_hid, dx * 2, dy * 2);
-                }
+        if (touched && !s_was_touched) {
+            // Touch down
+            input.type = TRACKPAD_EVENT_PRESSED;
+            input.x = x;
+            input.y = y;
+            input.timestamp_ms = now;
+            if (trackpad_process_input(&s_gesture_state, &input, &action)) {
+                execute_action(&action, now);
             }
 
-            // Update cursor (try to get lock, skip if busy)
+            // Show cursor
             if (s_cursor && lvgl_port_lock(10)) {
                 lv_obj_set_pos(s_cursor, x - 8, y - 8);
-                if (!s_was_touched) {
-                    lv_obj_clear_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
-                }
+                lv_obj_clear_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
                 lvgl_port_unlock();
             }
 
-            s_last_x = x;
-            s_last_y = y;
-            s_was_touched = true;
-        } else {
-            if (s_was_touched && s_cursor && lvgl_port_lock(10)) {
+        } else if (touched && s_was_touched) {
+            // Touch moving
+            input.type = TRACKPAD_EVENT_PRESSING;
+            input.x = x;
+            input.y = y;
+            input.timestamp_ms = now;
+            if (trackpad_process_input(&s_gesture_state, &input, &action)) {
+                execute_action(&action, now);
+            }
+
+            // Update cursor position
+            if (s_cursor && lvgl_port_lock(10)) {
+                lv_obj_set_pos(s_cursor, x - 8, y - 8);
+                lvgl_port_unlock();
+            }
+
+        } else if (!touched && s_was_touched) {
+            // Touch released
+            input.type = TRACKPAD_EVENT_RELEASED;
+            input.x = s_last_x;
+            input.y = s_last_y;
+            input.timestamp_ms = now;
+            if (trackpad_process_input(&s_gesture_state, &input, &action)) {
+                execute_action(&action, now);
+            }
+
+            // Hide cursor
+            if (s_cursor && lvgl_port_lock(10)) {
                 lv_obj_add_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
                 lvgl_port_unlock();
             }
-            s_was_touched = false;
         }
+
+        // Tick for time-based transitions (tap window expiry, drag detection)
+        if (trackpad_tick(now, &action)) {
+            execute_action(&action, now);
+        }
+
+        // Process pending clicks (non-blocking)
+        process_pending_clicks(now);
+
+        // Update state
+        if (touched) {
+            s_last_x = x;
+            s_last_y = y;
+        }
+        s_was_touched = touched;
 
         vTaskDelay(poll_interval);
     }

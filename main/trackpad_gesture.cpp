@@ -5,11 +5,9 @@
 
 #include "trackpad_gesture.h"
 #include "trackpad_gesture.hpp"
-#include <cstdlib>  // for abs
+#include <cstdlib>
 
-// ========================== C++ to C Wrapper ==========================
-
-// Global trackpad instance (singleton pattern)
+// Global trackpad instance
 static Trackpad* g_trackpad = nullptr;
 
 // ========================== C API Implementation ==========================
@@ -18,15 +16,12 @@ void trackpad_state_init(trackpad_state_t *state,
                          uint16_t hres, uint16_t vres,
                          int32_t scroll_zone_w, int32_t scroll_zone_h)
 {
-    // Create C++ trackpad instance
-    if (g_trackpad) {
-        delete g_trackpad;
+    if (!g_trackpad) {
+        g_trackpad = new Trackpad(hres, vres);
     }
-    g_trackpad = new Trackpad(hres, vres);
 
-    // Store config in C state struct for compatibility
     if (state) {
-        *state = {};  // Zero-initialize safely
+        *state = {};
         state->hres = hres;
         state->vres = vres;
         state->scroll_zone_w = scroll_zone_w;
@@ -43,8 +38,23 @@ void trackpad_state_reset(trackpad_state_t *state)
 
     if (state) {
         state->state = TRACKPAD_STATE_IDLE;
-        state->velocity_x_smooth = 0.0f;
-        state->velocity_y_smooth = 0.0f;
+    }
+}
+
+// Convert C++ ActionType to C trackpad_action_type_t
+static trackpad_action_type_t convert_action_type(ActionType type)
+{
+    switch (type) {
+        case ActionType::NONE:         return TRACKPAD_ACTION_NONE;
+        case ActionType::MOVE:         return TRACKPAD_ACTION_MOVE;
+        case ActionType::CLICK:        return TRACKPAD_ACTION_CLICK_DOWN;
+        case ActionType::DOUBLE_CLICK: return TRACKPAD_ACTION_DOUBLE_CLICK;
+        case ActionType::TRIPLE_CLICK: return TRACKPAD_ACTION_TRIPLE_CLICK;
+        case ActionType::QUAD_CLICK:   return TRACKPAD_ACTION_QUADRUPLE_CLICK;
+        case ActionType::DRAG_START:   return TRACKPAD_ACTION_DRAG_START;
+        case ActionType::DRAG_MOVE:    return TRACKPAD_ACTION_DRAG_MOVE;
+        case ActionType::DRAG_END:     return TRACKPAD_ACTION_DRAG_END;
+        default:                       return TRACKPAD_ACTION_NONE;
     }
 }
 
@@ -56,42 +66,47 @@ bool trackpad_process_input(trackpad_state_t *state,
         return false;
     }
 
-    // Convert C types to C++
+    // Convert C input to C++
     TouchInput cpp_input;
     switch (input->type) {
-        case TRACKPAD_EVENT_PRESSED:
-            cpp_input.event = TouchEvent::PRESSED;
-            break;
-        case TRACKPAD_EVENT_PRESSING:
-            cpp_input.event = TouchEvent::PRESSING;
-            break;
-        case TRACKPAD_EVENT_RELEASED:
-            cpp_input.event = TouchEvent::RELEASED;
-            break;
-        default:
-            return false;
+        case TRACKPAD_EVENT_PRESSED:  cpp_input.event = TouchEvent::PRESSED; break;
+        case TRACKPAD_EVENT_PRESSING: cpp_input.event = TouchEvent::PRESSING; break;
+        case TRACKPAD_EVENT_RELEASED: cpp_input.event = TouchEvent::RELEASED; break;
+        default: return false;
     }
     cpp_input.x = input->x;
     cpp_input.y = input->y;
     cpp_input.timestamp_ms = input->timestamp_ms;
 
-    // Process through C++ class
-    MovementAction movement = g_trackpad->processInput(cpp_input);
+    // Process
+    TrackpadAction result = g_trackpad->processInput(cpp_input);
 
-    // Convert result back to C - safe zero-initialization
+    // Convert result to C
     *action = {};
+    action->type = convert_action_type(result.type);
+    action->dx = result.dx;
+    action->dy = result.dy;
 
-    if (movement.hasMovement()) {
-        action->type = TRACKPAD_ACTION_MOVE;
-        action->dx = movement.dx;
-        action->dy = movement.dy;
-        return true;
-    }
-
-    return false;
+    return result.hasAction();
 }
 
-// ========================== Stub implementations for compatibility ==========================
+bool trackpad_tick(uint32_t timestamp_ms, trackpad_action_t *action)
+{
+    if (!g_trackpad || !action) {
+        return false;
+    }
+
+    TrackpadAction result = g_trackpad->tick(timestamp_ms);
+
+    *action = {};
+    action->type = convert_action_type(result.type);
+    action->dx = result.dx;
+    action->dy = result.dy;
+
+    return result.hasAction();
+}
+
+// ========================== Pure Functions ==========================
 
 int32_t trackpad_clamp_i32(int32_t val, int32_t min, int32_t max)
 {
@@ -102,12 +117,12 @@ trackpad_zone_t trackpad_get_zone(int32_t x, int32_t y,
                                   uint16_t hres, uint16_t vres,
                                   int32_t scroll_w, int32_t scroll_h)
 {
-    // bool in_right = (x >= hres - scroll_w);
-    // bool in_bottom = (y >= vres - scroll_h);
+    bool in_right = (x >= (int32_t)(hres - scroll_w));
+    bool in_bottom = (y >= (int32_t)(vres - scroll_h));
 
-    // if (in_right && in_bottom) return TRACKPAD_ZONE_SCROLL_CORNER;
-    // if (in_right) return TRACKPAD_ZONE_SCROLL_V;
-    // if (in_bottom) return TRACKPAD_ZONE_SCROLL_H;
+    if (in_right && in_bottom) return TRACKPAD_ZONE_SCROLL_CORNER;
+    if (in_right) return TRACKPAD_ZONE_SCROLL_V;
+    if (in_bottom) return TRACKPAD_ZONE_SCROLL_H;
     return TRACKPAD_ZONE_MAIN;
 }
 
@@ -130,9 +145,8 @@ float trackpad_ewma_update(float current_smooth, float instant_value, float alph
 float trackpad_apply_acceleration(float delta, float velocity_pps)
 {
     (void)velocity_pps;
-    // Delegate to C++ class
     if (g_trackpad) {
-        return g_trackpad->config().sensitivity * delta;
+        return g_trackpad->config().accel_min * delta;
     }
     return delta;
 }
@@ -142,6 +156,9 @@ trackpad_tap_result_t trackpad_classify_tap(uint32_t duration_ms,
                                             int32_t total_movement,
                                             uint8_t tap_count)
 {
-    // Not implemented - no tap detection
+    (void)duration_ms;
+    (void)net_displacement;
+    (void)total_movement;
+    (void)tap_count;
     return TRACKPAD_TAP_NONE;
 }

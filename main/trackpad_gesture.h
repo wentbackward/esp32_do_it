@@ -216,6 +216,19 @@ bool trackpad_process_input(trackpad_state_t *state,
                             const trackpad_input_t *input,
                             trackpad_action_t *action);
 
+/**
+ * @brief Periodic tick for time-based state transitions
+ *
+ * Call this periodically (e.g., every 5-10ms) to handle:
+ * - Tap-hold becoming drag after hold time
+ * - Multi-tap window expiring (emitting pending clicks)
+ *
+ * @param timestamp_ms Current timestamp in milliseconds
+ * @param action Output action to execute (only valid if returns true)
+ * @return true if action should be executed, false if no action needed
+ */
+bool trackpad_tick(uint32_t timestamp_ms, trackpad_action_t *action);
+
 // ========================== Pure Functions (Testable) ==========================
 
 /**
