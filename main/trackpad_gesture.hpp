@@ -29,13 +29,13 @@ struct TrackpadConfig {
     uint32_t drag_hold_time_ms = 150;      // Hold time after tap to start drag
 
     // Acceleration curve (smooth power curve)
-    float accel_min = 1.5f;                // Multiplier at slow speeds
-    float accel_max = 4.0f;                // Multiplier at fast speeds
-    float accel_velocity_scale = 100.0f;   // Velocity normalization (px/s)
+    float accel_min = 1.0f;                // Multiplier at slow speeds (1:1 response)
+    float accel_max = 5.0f;                // Multiplier at fast speeds
+    float accel_velocity_scale = 600.0f;   // Velocity normalization (px/s)
     float accel_exponent = 0.8f;           // Curve shape (<1 = gentle start)
 
     // Anti-wiggle (small dead zone for direction changes)
-    int32_t anti_wiggle_px = 2;            // Ignore movements smaller than this
+    int32_t anti_wiggle_px = 0;            // Ignore movements smaller than this
 };
 
 // ========================== Types ==========================
@@ -187,10 +187,13 @@ private:
 
     // Movement tracking
     int32_t m_total_movement = 0;
+    int32_t m_last_raw_dx = 0;
+    int32_t m_last_raw_dy = 0;
 
-    // Sub-pixel accumulator
-    float m_accum_x = 0.0f;
-    float m_accum_y = 0.0f;
+    // Sub-pixel accumulator (8-bit fractional part)
+    static const int32_t FIXED_POINT_SHIFT = 8;
+    int32_t m_accum_x = 0;
+    int32_t m_accum_y = 0;
 
     // ========================== Event Handlers ==========================
 
@@ -203,8 +206,8 @@ private:
         m_touch_start_y = input.y;
         m_touch_down_time = input.timestamp_ms;
         m_total_movement = 0;
-        m_accum_x = 0.0f;
-        m_accum_y = 0.0f;
+        m_accum_x = 0;
+        m_accum_y = 0;
 
         // Check if this is within the multi-tap window
         if (m_state == State::WAITING_FOR_TAP) {
@@ -225,6 +228,16 @@ private:
         // Calculate raw delta
         int32_t raw_dx = input.x - m_last_x;
         int32_t raw_dy = input.y - m_last_y;
+
+        // Detect direction change and reset accumulator
+        if ((raw_dx > 0 && m_last_raw_dx < 0) || (raw_dx < 0 && m_last_raw_dx > 0)) {
+            m_accum_x = 0;
+        }
+        if ((raw_dy > 0 && m_last_raw_dy < 0) || (raw_dy < 0 && m_last_raw_dy > 0)) {
+            m_accum_y = 0;
+        }
+        m_last_raw_dx = raw_dx;
+        m_last_raw_dy = raw_dy;
 
         // Track total movement (for tap detection)
         m_total_movement += std::abs(raw_dx) + std::abs(raw_dy);
@@ -255,19 +268,19 @@ private:
         }
 
         // Simple speed estimate: magnitude of delta (fixed poll rate assumed)
-        // Multiply by 200 to approximate px/sec at 200Hz polling
-        float speed = (std::abs(raw_dx) + std::abs(raw_dy)) * 200.0f;
-        float accel = calculateAcceleration(speed);
+        // Multiply by 100 to approximate px/sec at 100Hz polling
+        int32_t speed = (std::abs(raw_dx) + std::abs(raw_dy)) * 100;
+        int32_t accel = calculateAcceleration(speed);
 
-        // Accumulate with sub-pixel precision
+        // Accumulate with fixed-point precision
         m_accum_x += raw_dx * accel;
         m_accum_y += raw_dy * accel;
 
         // Extract integer part
-        int16_t out_dx = static_cast<int16_t>(m_accum_x);
-        int16_t out_dy = static_cast<int16_t>(m_accum_y);
-        m_accum_x -= out_dx;
-        m_accum_y -= out_dy;
+        int16_t out_dx = m_accum_x >> FIXED_POINT_SHIFT;
+        int16_t out_dy = m_accum_y >> FIXED_POINT_SHIFT;
+        m_accum_x -= (out_dx << FIXED_POINT_SHIFT);
+        m_accum_y -= (out_dy << FIXED_POINT_SHIFT);
 
         if (out_dx == 0 && out_dy == 0) {
             return TrackpadAction();
@@ -277,7 +290,11 @@ private:
         if (m_state == State::DRAGGING) {
             return TrackpadAction(ActionType::DRAG_MOVE, out_dx, out_dy);
         } else {
-            m_state = State::MOVING;
+            // Even if WAITING_FOR_TAP, we output movement immediately.
+            // We only switch state to MOVING if the threshold logic above triggers.
+            if (m_state == State::IDLE) {
+                m_state = State::MOVING;
+            }
             return TrackpadAction(ActionType::MOVE, out_dx, out_dy);
         }
     }
@@ -323,15 +340,23 @@ private:
 
     // ========================== Helpers ==========================
 
-    float calculateAcceleration(float velocity_pps)
+    int32_t calculateAcceleration(int32_t velocity_pps)
     {
-        // Simple linear acceleration (fast, no sqrt/pow)
-        // accel = min + (max - min) * clamp(velocity / scale, 0, 1)
-        float normalized = velocity_pps / m_config.accel_velocity_scale;
-        if (normalized < 0.0f) normalized = 0.0f;
-        if (normalized > 1.0f) normalized = 1.0f;
+        // Use integer arithmetic for a fast linear acceleration curve.
+        // All values are scaled by FIXED_POINT_SHIFT.
+        const int32_t min_accel = static_cast<int32_t>(m_config.accel_min * (1 << FIXED_POINT_SHIFT));
+        const int32_t max_accel = static_cast<int32_t>(m_config.accel_max * (1 << FIXED_POINT_SHIFT));
+        const int32_t velocity_scale = static_cast<int32_t>(m_config.accel_velocity_scale);
 
-        return m_config.accel_min + (m_config.accel_max - m_config.accel_min) * normalized;
+        if (velocity_pps >= velocity_scale) {
+            return max_accel;
+        }
+        if (velocity_pps <= 0) {
+            return min_accel;
+        }
+
+        // Linear interpolation: min + (max - min) * (velocity / scale)
+        return min_accel + ((max_accel - min_accel) * velocity_pps) / velocity_scale;
     }
 
     TrackpadAction emitPendingClicks()

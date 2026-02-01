@@ -202,6 +202,42 @@ static uint32_t get_timestamp_ms(void)
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
+// ========================== UI Update Timer (Decoupled from HID) ==========================
+
+/**
+ * @brief Timer callback to update UI cursor from shared state
+ * Runs in LVGL task context, so no locking needed
+ */
+static void ui_update_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+
+    if (!s_cursor) return;
+
+    // Read shared state (atomic 32-bit reads are safe enough for visual cursor)
+    int32_t x = s_ui_x;
+    int32_t y = s_ui_y;
+    bool touched = s_ui_touched;
+
+    if (touched) {
+        lv_obj_set_pos(s_cursor, x - 8, y - 8);
+        lv_obj_clear_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
+        
+        // Update scroll zone highlights
+        trackpad_zone_t zone = trackpad_get_zone(x, y, s_hres, s_vres, s_scroll_w, s_scroll_h);
+        if (s_scroll_zone_v) {
+             lv_obj_set_style_bg_opa(s_scroll_zone_v, (zone == TRACKPAD_ZONE_SCROLL_V) ? LV_OPA_30 : LV_OPA_10, 0);
+        }
+        if (s_scroll_zone_h) {
+             lv_obj_set_style_bg_opa(s_scroll_zone_h, (zone == TRACKPAD_ZONE_SCROLL_H) ? LV_OPA_30 : LV_OPA_10, 0);
+        }
+    } else {
+        lv_obj_add_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
+        if (s_scroll_zone_v) lv_obj_set_style_bg_opa(s_scroll_zone_v, LV_OPA_10, 0);
+        if (s_scroll_zone_h) lv_obj_set_style_bg_opa(s_scroll_zone_h, LV_OPA_10, 0);
+    }
+}
+
 /**
  * @brief High-frequency touch polling task
  * Reads touch directly from hardware, processes gestures, sends HID at ~200Hz
@@ -230,6 +266,11 @@ static void touch_poll_task(void *arg)
         uint8_t point_num = 0;
         bool touched = esp_lcd_touch_get_coordinates(s_touch, &x, &y, &strength, &point_num, 1);
 
+        // Update shared state for UI timer
+        s_ui_x = x;
+        s_ui_y = y;
+        s_ui_touched = touched;
+
         // Process through gesture processor
         trackpad_input_t input;
         trackpad_action_t action;
@@ -243,14 +284,6 @@ static void touch_poll_task(void *arg)
             if (trackpad_process_input(&s_gesture_state, &input, &action)) {
                 execute_action(&action, now);
             }
-
-            // Show cursor
-            if (s_cursor && lvgl_port_lock(10)) {
-                lv_obj_set_pos(s_cursor, x - 8, y - 8);
-                lv_obj_clear_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
-                lvgl_port_unlock();
-            }
-
         } else if (touched && s_was_touched) {
             // Touch moving
             input.type = TRACKPAD_EVENT_PRESSING;
@@ -260,13 +293,6 @@ static void touch_poll_task(void *arg)
             if (trackpad_process_input(&s_gesture_state, &input, &action)) {
                 execute_action(&action, now);
             }
-
-            // Update cursor position
-            if (s_cursor && lvgl_port_lock(10)) {
-                lv_obj_set_pos(s_cursor, x - 8, y - 8);
-                lvgl_port_unlock();
-            }
-
         } else if (!touched && s_was_touched) {
             // Touch released
             input.type = TRACKPAD_EVENT_RELEASED;
@@ -275,12 +301,6 @@ static void touch_poll_task(void *arg)
             input.timestamp_ms = now;
             if (trackpad_process_input(&s_gesture_state, &input, &action)) {
                 execute_action(&action, now);
-            }
-
-            // Hide cursor
-            if (s_cursor && lvgl_port_lock(10)) {
-                lv_obj_add_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
-                lvgl_port_unlock();
             }
         }
 
@@ -574,24 +594,14 @@ void ui_trackpad_init(const trackpad_cfg_t *cfg)
     lv_obj_add_flag(s_cursor, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(s_cursor, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Full-screen transparent touch layer (behind scroll zones visually but captures all events)
-    lv_obj_t *touch_layer = lv_obj_create(scr);
-    lv_obj_set_size(touch_layer, s_hres, s_vres);
-    lv_obj_set_pos(touch_layer, 0, 0);
-    lv_obj_set_style_bg_opa(touch_layer, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(touch_layer, 0, 0);
-    lv_obj_clear_flag(touch_layer, LV_OBJ_FLAG_SCROLLABLE);
-
     // Bring cursor, drag indicator, and button to front
     lv_obj_move_foreground(s_cursor);
     if (s_mode_btn) {
         lv_obj_move_foreground(s_mode_btn);
     }
 
-    // Add touch event handlers (only used if LVGL has touch - not in trackpad mode)
-    lv_obj_add_event_cb(touch_layer, trackpad_touch_handler, LV_EVENT_PRESSED, NULL);
-    lv_obj_add_event_cb(touch_layer, trackpad_touch_handler, LV_EVENT_PRESSING, NULL);
-    lv_obj_add_event_cb(touch_layer, trackpad_touch_handler, LV_EVENT_RELEASED, NULL);
+    // Start UI update timer (30fps is enough for visual feedback)
+    lv_timer_create(ui_update_timer_cb, 33, NULL);
 
     // Start high-frequency touch polling task AFTER UI is created
     if (s_touch) {

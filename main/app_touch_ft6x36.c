@@ -104,7 +104,7 @@ esp_err_t app_touch_init(app_touch_t *out)
 
     // Tune FT6X36 for smoother trackpad-like response
     // Higher threshold = less sensitive but better noise rejection
-    uint8_t th_group = 0x20;   // Touch threshold (default 0x10, higher = less sensitive)
+    uint8_t th_group = 0x30;   // Touch threshold (default 0x10, higher = less sensitive)
     uint8_t th_diff = 0x00;    // No filtering (causes deadzone on direction change)
 
     esp_lcd_panel_io_tx_param(tp_io, FT6X36_REG_TH_GROUP, &th_group, 1);
