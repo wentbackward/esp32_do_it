@@ -14,13 +14,14 @@
 
 #include <cstdint>
 #include <cmath>
+#include "esp_log.h" // Changed from <cstdio> to esp_log.h
 
 // ========================== Configuration ==========================
 
 struct TrackpadConfig {
     // Tap detection
     uint32_t tap_max_duration_ms = 150;    // Max duration for a tap
-    int32_t tap_max_movement_px = 5;       // Max movement for a tap
+    int32_t tap_max_movement_px = 2;       // Max movement for a tap
 
     // Multi-tap window
     uint32_t multi_tap_window_ms = 300;    // Window to chain taps together
@@ -30,9 +31,9 @@ struct TrackpadConfig {
 
     // Acceleration curve (smooth power curve)
     float accel_min = 1.0f;                // Multiplier at slow speeds (1:1 response)
-    float accel_max = 5.0f;                // Multiplier at fast speeds
-    float accel_velocity_scale = 600.0f;   // Velocity normalization (px/s)
-    float accel_exponent = 0.8f;           // Curve shape (<1 = gentle start)
+    float accel_max = 3.0f;                // Multiplier at fast speeds
+    float accel_velocity_scale = 800.0f;   // Velocity normalization (px/s)
+    float accel_exponent = 1.0f;           // 1.0 = Linear (Predictable)
 
     // Anti-wiggle (small dead zone for direction changes)
     int32_t anti_wiggle_px = 0;            // Ignore movements smaller than this
@@ -148,9 +149,12 @@ public:
         m_touch_start_y = 0;
         m_touch_down_time = 0;
         m_last_release_time = 0;
+        m_last_sample_time = 0;
         m_total_movement = 0;
-        m_accum_x = 0.0f;
-        m_accum_y = 0.0f;
+        m_accum_x = 0;
+        m_accum_y = 0;
+        m_velocity_x = 0.0f;
+        m_velocity_y = 0.0f;
     }
 
     TrackpadConfig& config() { return m_config; }
@@ -184,11 +188,17 @@ private:
     uint32_t m_current_time = 0;
     uint32_t m_touch_down_time = 0;
     uint32_t m_last_release_time = 0;
+    uint32_t m_last_sample_time = 0;
 
     // Movement tracking
     int32_t m_total_movement = 0;
     int32_t m_last_raw_dx = 0;
     int32_t m_last_raw_dy = 0;
+    int32_t m_frames_since_touch_down = 0;
+
+    // Velocity tracking (pixels per second)
+    float m_velocity_x = 0.0f;
+    float m_velocity_y = 0.0f;
 
     // Sub-pixel accumulator (8-bit fractional part)
     static const int32_t FIXED_POINT_SHIFT = 8;
@@ -205,9 +215,15 @@ private:
         m_touch_start_x = input.x;
         m_touch_start_y = input.y;
         m_touch_down_time = input.timestamp_ms;
+        m_last_sample_time = input.timestamp_ms;
         m_total_movement = 0;
+        m_last_raw_dx = 0;
+        m_last_raw_dy = 0;
+        m_frames_since_touch_down = 0;
         m_accum_x = 0;
         m_accum_y = 0;
+        m_velocity_x = 0.0f;
+        m_velocity_y = 0.0f;
 
         // Check if this is within the multi-tap window
         if (m_state == State::WAITING_FOR_TAP) {
@@ -225,16 +241,38 @@ private:
             return TrackpadAction();
         }
 
+        m_frames_since_touch_down++;
+
+        // Calculate time delta (dt) in seconds
+        uint32_t dt_ms = input.timestamp_ms - m_last_sample_time;
+        if (dt_ms == 0) dt_ms = 1; // Prevent div by zero
+        float dt = dt_ms / 1000.0f;
+        m_last_sample_time = input.timestamp_ms;
+
         // Calculate raw delta
         int32_t raw_dx = input.x - m_last_x;
         int32_t raw_dy = input.y - m_last_y;
 
-        // Detect direction change and reset accumulator
+        // Startup stability filter: Clamp huge jumps in the first few frames
+        // This prevents "jumping" if the hardware reports erratic coordinates on touch down
+        if (m_frames_since_touch_down <= 100) {
+            const int32_t STARTUP_CLAMP_PX = 5;
+            if (raw_dx > STARTUP_CLAMP_PX) raw_dx = STARTUP_CLAMP_PX;
+            if (raw_dx < -STARTUP_CLAMP_PX) raw_dx = -STARTUP_CLAMP_PX;
+            if (raw_dy > STARTUP_CLAMP_PX) raw_dy = STARTUP_CLAMP_PX;
+            if (raw_dy < -STARTUP_CLAMP_PX) raw_dy = -STARTUP_CLAMP_PX;
+        }
+
+        // Detect direction change and DAMP velocity (soft braking)
+        // Resetting to 0 causes stutter, but keeping full velocity causes "jumps".
+        // Damping by 0.5f provides a natural "turnaround" feel.
         if ((raw_dx > 0 && m_last_raw_dx < 0) || (raw_dx < 0 && m_last_raw_dx > 0)) {
             m_accum_x = 0;
+            m_velocity_x *= 0.5f; 
         }
         if ((raw_dy > 0 && m_last_raw_dy < 0) || (raw_dy < 0 && m_last_raw_dy > 0)) {
             m_accum_y = 0;
+            m_velocity_y *= 0.5f;
         }
         m_last_raw_dx = raw_dx;
         m_last_raw_dy = raw_dy;
@@ -242,9 +280,9 @@ private:
         // Track total movement (for tap detection)
         m_total_movement += std::abs(raw_dx) + std::abs(raw_dy);
 
-        // Update last position
-        m_last_x = input.x;
-        m_last_y = input.y;
+        // Update last position using potentially clamped deltas
+        m_last_x += raw_dx;
+        m_last_y += raw_dy;
 
         // No movement? No action
         if (raw_dx == 0 && raw_dy == 0) {
@@ -257,20 +295,35 @@ private:
             return TrackpadAction();
         }
 
-        // If we were waiting for tap and moved significantly, cancel tap detection
+        // CRITICAL FIX: If we moved significantly, force exit from "Waiting for Tap"
+        // This prevents the system from "bogging down" trying to classify a move as a tap.
         if (m_state == State::WAITING_FOR_TAP &&
             m_total_movement > m_config.tap_max_movement_px) {
-            TrackpadAction pending = emitPendingClicks();
-            m_state = State::MOVING;
-            if (pending.hasAction()) {
-                return pending;
+            // We are definitely moving now. Emit any pending clicks if needed (unlikely)
+            // and force state to MOVING.
+            if (m_tap_count > 0) {
+                 TrackpadAction pending = emitPendingClicks();
+                 m_state = State::MOVING;
+                 return pending;
             }
+            m_state = State::MOVING;
         }
 
-        // Simple speed estimate: magnitude of delta (fixed poll rate assumed)
-        // Multiply by 100 to approximate px/sec at 100Hz polling
-        int32_t speed = (std::abs(raw_dx) + std::abs(raw_dy)) * 100;
-        int32_t accel = calculateAcceleration(speed);
+        // Calculate instantaneous velocity (pixels per second)
+        float inst_vel_x = std::abs(raw_dx) / dt;
+        float inst_vel_y = std::abs(raw_dy) / dt;
+
+        // Smooth velocity using EWMA (0.3 = strong smoothing for jerky noise)
+        m_velocity_x = (inst_vel_x * 0.3f) + (m_velocity_x * 0.7f);
+        m_velocity_y = (inst_vel_y * 0.3f) + (m_velocity_y * 0.7f);
+        float speed = m_velocity_x + m_velocity_y;
+
+        int32_t accel = calculateAcceleration((int32_t)speed);
+
+        // Force minimum acceleration for the first few frames to dampen landing noise
+        if (m_frames_since_touch_down <= 10) {
+             accel = static_cast<int32_t>(m_config.accel_min * (1 << FIXED_POINT_SHIFT));
+        }
 
         // Accumulate with fixed-point precision
         m_accum_x += raw_dx * accel;
@@ -290,9 +343,8 @@ private:
         if (m_state == State::DRAGGING) {
             return TrackpadAction(ActionType::DRAG_MOVE, out_dx, out_dy);
         } else {
-            // Even if WAITING_FOR_TAP, we output movement immediately.
-            // We only switch state to MOVING if the threshold logic above triggers.
-            if (m_state == State::IDLE) {
+            // Even if we were waiting for tap, we output movement immediately.
+            if (m_state == State::IDLE || m_state == State::WAITING_FOR_TAP) {
                 m_state = State::MOVING;
             }
             return TrackpadAction(ActionType::MOVE, out_dx, out_dy);
@@ -342,18 +394,13 @@ private:
 
     int32_t calculateAcceleration(int32_t velocity_pps)
     {
-        // Use integer arithmetic for a fast linear acceleration curve.
-        // All values are scaled by FIXED_POINT_SHIFT.
+        // Linear acceleration curve (Predictable and stable)
         const int32_t min_accel = static_cast<int32_t>(m_config.accel_min * (1 << FIXED_POINT_SHIFT));
         const int32_t max_accel = static_cast<int32_t>(m_config.accel_max * (1 << FIXED_POINT_SHIFT));
         const int32_t velocity_scale = static_cast<int32_t>(m_config.accel_velocity_scale);
 
-        if (velocity_pps >= velocity_scale) {
-            return max_accel;
-        }
-        if (velocity_pps <= 0) {
-            return min_accel;
-        }
+        if (velocity_pps >= velocity_scale) return max_accel;
+        if (velocity_pps <= 0) return min_accel;
 
         // Linear interpolation: min + (max - min) * (velocity / scale)
         return min_accel + ((max_accel - min_accel) * velocity_pps) / velocity_scale;

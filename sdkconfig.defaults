@@ -14,10 +14,10 @@ CONFIG_ESP_SYSTEM_PANIC_REBOOT_DELAY_SECONDS=5
 CONFIG_LV_DEF_REFR_PERIOD=33
 CONFIG_LV_INDEV_DEF_READ_PERIOD=10
 
-# TinyUSB - HID only (CDC console disabled to avoid conflicts)
-CONFIG_TINYUSB_CDC_ENABLED=n
+# TinyUSB - Composite HID + CDC (Debug Console)
+CONFIG_TINYUSB_CDC_ENABLED=y
 CONFIG_TINYUSB_HID_COUNT=1
 
-# Console disabled when using TinyUSB HID (they conflict)
-CONFIG_ESP_CONSOLE_NONE=y
+# Console on UART (safe default), we will redirect to CDC in app_main
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
 

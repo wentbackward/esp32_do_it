@@ -236,6 +236,12 @@ static void ui_update_timer_cb(lv_timer_t *timer)
         if (s_scroll_zone_v) lv_obj_set_style_bg_opa(s_scroll_zone_v, LV_OPA_10, 0);
         if (s_scroll_zone_h) lv_obj_set_style_bg_opa(s_scroll_zone_h, LV_OPA_10, 0);
     }
+
+    // Heartbeat for debug
+    static uint32_t frame_count = 0;
+    if (++frame_count % 30 == 0) {
+        ESP_LOGI(TAG, "Heartbeat... (Touch: %d)", touched);
+    }
 }
 
 /**
@@ -246,7 +252,7 @@ static void ui_update_timer_cb(lv_timer_t *timer)
 static void touch_poll_task(void *arg)
 {
     (void)arg;
-    const TickType_t poll_interval = pdMS_TO_TICKS(5);  // 200Hz
+    const TickType_t poll_interval = pdMS_TO_TICKS(10);  // 100Hz (matches FT6x36 update rate)
 
     // Wait for system to stabilize
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -605,8 +611,9 @@ void ui_trackpad_init(const trackpad_cfg_t *cfg)
 
     // Start high-frequency touch polling task AFTER UI is created
     if (s_touch) {
-        xTaskCreate(touch_poll_task, "touch_poll", 4096, NULL, 3, &s_touch_task);
-        ESP_LOGI(TAG, "Touch polling task started (200Hz)");
+        // High priority (10) to prevent starvation by other system tasks
+        xTaskCreate(touch_poll_task, "touch_poll", 4096, NULL, 10, &s_touch_task);
+        ESP_LOGI(TAG, "Touch polling task started (200Hz, Prio: 10)");
     }
 
     ESP_LOGI(TAG, "Trackpad UI initialized (%s)", CONFIG_APP_VERSION);
