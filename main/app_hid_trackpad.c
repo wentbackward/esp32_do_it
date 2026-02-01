@@ -31,7 +31,8 @@ static const uint8_t s_hid_configuration_descriptor[] = {
 
     // HID Mouse Interface Descriptor
     // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-    TUD_HID_DESCRIPTOR(0, 0, HID_ITF_PROTOCOL_MOUSE, sizeof(s_hid_report_descriptor), 0x81, 8, 10),
+    // Polling interval: 1ms for smooth cursor movement (1000Hz)
+    TUD_HID_DESCRIPTOR(0, 0, HID_ITF_PROTOCOL_MOUSE, sizeof(s_hid_report_descriptor), 0x81, 8, 1),
 };
 
 // TinyUSB callbacks
@@ -126,8 +127,7 @@ esp_err_t app_hid_trackpad_send_move(app_hid_t *hid, int16_t dx, int16_t dy)
     int8_t dy_clamped = (dy > 127) ? 127 : (dy < -127) ? -127 : (int8_t)dy;
 
     // Send mouse report (buttons=0, x, y, scroll=0, pan=0)
-    bool sent = tud_hid_mouse_report(0, 0, dx_clamped, dy_clamped, 0, 0);
-    ESP_LOGD(TAG, "Mouse move (%d,%d) sent=%d", dx_clamped, dy_clamped, sent);
+    tud_hid_mouse_report(0, 0, dx_clamped, dy_clamped, 0, 0);
 
     return ESP_OK;
 }

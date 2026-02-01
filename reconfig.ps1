@@ -30,3 +30,6 @@ if (Test-Path $sdkconfig) {
 # Run idf.py reconfigure
 Write-Host "Running: idf.py -D SDKCONFIG_DEFAULTS=`"$defaults`" reconfigure" -ForegroundColor Cyan
 idf.py -D SDKCONFIG_DEFAULTS="$defaults" reconfigure
+
+Write-Host "Running: idf.py -D SDKCONFIG_DEFAULTS=`"$defaults`" build flash" -ForegroundColor Cyan
+idf.py -D SDKCONFIG_DEFAULTS="$defaults" build flash

@@ -12,6 +12,12 @@
 
 static const char *TAG = "app_touch";
 
+// FT6X36 register addresses for tuning
+#define FT6X36_REG_TH_GROUP     0x80  // Touch threshold (default 0x10)
+#define FT6X36_REG_TH_DIFF      0x85  // Filter function coefficient
+#define FT6X36_REG_CTRL         0x86  // Control register
+#define FT6X36_REG_TIMEENTERMON 0x87  // Time to enter monitor mode
+
 static void i2c_scan(i2c_master_bus_handle_t bus_handle)
 {
     ESP_LOGI(TAG, "Scanning I2C bus...");
@@ -95,6 +101,15 @@ esp_err_t app_touch_init(app_touch_t *out)
     out->tp = tp;
     out->tp_io = tp_io;
     out->i2c_bus = i2c_handle;
-    ESP_LOGI(TAG, "FT6x36 touch init OK (addr=0x%02X)", CONFIG_APP_TOUCH_I2C_ADDR);
+
+    // Tune FT6X36 for smoother trackpad-like response
+    // Higher threshold = less sensitive but better noise rejection
+    uint8_t th_group = 0x20;   // Touch threshold (default 0x10, higher = less sensitive)
+    uint8_t th_diff = 0x00;    // No filtering (causes deadzone on direction change)
+
+    esp_lcd_panel_io_tx_param(tp_io, FT6X36_REG_TH_GROUP, &th_group, 1);
+    esp_lcd_panel_io_tx_param(tp_io, FT6X36_REG_TH_DIFF, &th_diff, 1);
+
+    ESP_LOGI(TAG, "FT6x36 touch init OK (addr=0x%02X), tuned for trackpad", CONFIG_APP_TOUCH_I2C_ADDR);
     return ESP_OK;
 }

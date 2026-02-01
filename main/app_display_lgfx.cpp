@@ -213,9 +213,9 @@ extern "C" void lgfx_push_pixels(void *lgfx, int x1, int y1, int x2, int y2, con
     int w = x2 - x1;
     int h = y2 - y1;
 
-    // Push the pixel data to the display
+    // Push the pixel data to the display using DMA (non-blocking)
     gfx->startWrite();
     gfx->setAddrWindow(x1, y1, w, h);
-    gfx->writePixels((uint16_t*)data, w * h);
+    gfx->pushPixelsDMA((uint16_t*)data, w * h);
     gfx->endWrite();
 }

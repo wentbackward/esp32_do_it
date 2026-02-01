@@ -123,7 +123,12 @@ void app_main(void)
     // LVGL
     ESP_LOGI(TAG, "Proceeding with LVGL configuration");
     app_lvgl_handles_t lv = {0};
+#if CONFIG_APP_UI_TRACKPAD
+    // Trackpad mode: don't let LVGL read touch (our polling task handles it)
+    ESP_ERROR_CHECK(app_lvgl_init_and_add(disp_hw.panel, disp_hw.io, NULL, &lv));
+#else
     ESP_ERROR_CHECK(app_lvgl_init_and_add(disp_hw.panel, disp_hw.io, tp, &lv));
+#endif
     (void)lv;
 
     ESP_LOGI(TAG, "LVGL configuration complete - proceeding to set up UI");
@@ -202,6 +207,7 @@ void app_main(void)
         .hres = CONFIG_APP_LCD_HRES,
         .vres = CONFIG_APP_LCD_VRES,
         .hid = &hid,
+        .touch = tp,  // Pass touch handle for direct high-frequency polling
         .mode_switch_cb = NULL,  // TODO: Add mode switching when macropad UI is integrated
     };
     ui_trackpad_init(&cfg);

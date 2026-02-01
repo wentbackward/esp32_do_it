@@ -24,29 +24,30 @@ extern "C" {
 
 // ========================== Configuration Constants ==========================
 
-// Jitter filtering
-#define TRACKPAD_JITTER_THRESHOLD 3
+// Jitter filtering (anti-vibration dead zone)
+// Set to 0 to disable - EWMA smoothing provides enough stability
+#define TRACKPAD_JITTER_THRESHOLD 0
 
 // Velocity smoothing (EWMA)
-#define TRACKPAD_VELOCITY_ALPHA 0.3f
+// Higher = more responsive, Lower = smoother
+// 0.5 = good balance for instant response without jitter
+#define TRACKPAD_VELOCITY_ALPHA 0.5f
 
-// Acceleration curve (velocity in pixels per second)
-#define TRACKPAD_ACCEL_PRECISION_SENSITIVITY 0.5f
-#define TRACKPAD_ACCEL_BASE_SENSITIVITY 1.0f
-#define TRACKPAD_ACCEL_MAX_MULTIPLIER 5.0f
-#define TRACKPAD_ACCEL_PRECISION_THRESHOLD 100.0f
-#define TRACKPAD_ACCEL_LINEAR_THRESHOLD 400.0f
-#define TRACKPAD_ACCEL_MAX_THRESHOLD 1500.0f
+// Acceleration curve (smooth power curve - no steps/thresholds)
+#define TRACKPAD_ACCEL_MIN_SENSITIVITY 2.5f         // Multiplier at very low speeds
+#define TRACKPAD_ACCEL_MAX_SENSITIVITY 6.0f         // Multiplier at very high speeds
+#define TRACKPAD_ACCEL_VELOCITY_SCALE 150.0f        // Velocity scaling factor (px/s)
+#define TRACKPAD_ACCEL_CURVE_EXPONENT 1.3f          // Curve shape (>1 = accelerates smoothly)
 
-// Tap detection
+// Tap detection (stricter for better usability)
 #define TRACKPAD_TAP_MIN_DURATION_MS 50
-#define TRACKPAD_TAP_MAX_DURATION_MS 200
-#define TRACKPAD_TAP_MOVE_THRESHOLD 15
+#define TRACKPAD_TAP_MAX_DURATION_MS 150   
+#define TRACKPAD_TAP_MOVE_THRESHOLD 5    
 #define TRACKPAD_TAP_JITTER_RATIO 3.0f
 
-// Tap-tap-drag timing
-#define TRACKPAD_DOUBLE_TAP_WINDOW_MS 350
-#define TRACKPAD_DRAG_MOVE_THRESHOLD 25
+// Multi-tap chaining window
+#define TRACKPAD_MULTI_TAP_WINDOW_MS 400   // Window to chain taps together (was too short at 50ms)
+#define TRACKPAD_DRAG_MOVE_THRESHOLD 20    // Movement to initiate drag (was too sensitive at 8px)
 
 // Scroll sensitivity
 #define TRACKPAD_SCROLL_SENSITIVITY 20
@@ -102,6 +103,8 @@ typedef enum {
     TRACKPAD_ACTION_CLICK_DOWN,     // Button press
     TRACKPAD_ACTION_CLICK_UP,       // Button release
     TRACKPAD_ACTION_DOUBLE_CLICK,   // Double-click sequence
+    TRACKPAD_ACTION_TRIPLE_CLICK,   // Triple-click sequence
+    TRACKPAD_ACTION_QUADRUPLE_CLICK,// Quadruple-click sequence
     TRACKPAD_ACTION_SCROLL_V,       // Vertical scroll
     TRACKPAD_ACTION_SCROLL_H,       // Horizontal scroll
     TRACKPAD_ACTION_DRAG_START,     // Begin drag (button down)
@@ -154,7 +157,7 @@ typedef struct {
     uint32_t last_tap_time;
     int32_t total_movement;
     bool button_held;
-    bool tap_tap_pending;
+    uint8_t tap_count;          // Number of taps in current chain (for multi-tap)
 
     // Velocity smoothing (EWMA)
     float velocity_x_smooth;
@@ -172,6 +175,8 @@ typedef enum {
     TRACKPAD_TAP_NONE = 0,      // Not a tap
     TRACKPAD_TAP_SINGLE,        // Single tap (click)
     TRACKPAD_TAP_DOUBLE,        // Double tap (double-click)
+    TRACKPAD_TAP_TRIPLE,        // Triple tap (triple-click)
+    TRACKPAD_TAP_QUADRUPLE,     // Quadruple tap (quad-click)
 } trackpad_tap_result_t;
 
 // ========================== Public API ==========================
@@ -268,12 +273,15 @@ bool trackpad_is_jitter(int32_t dx, int32_t dy, int32_t threshold);
 float trackpad_ewma_update(float current_smooth, float instant_value, float alpha);
 
 /**
- * @brief Apply dual-phase acceleration curve
+ * @brief Apply smooth acceleration curve
  *
- * Industry-standard approach:
- * - Slow movements: sub-unity multiplier for precise control
- * - Medium movements: linear transition zone
- * - Fast movements: power curve acceleration for quick traversal
+ * Uses a continuous power curve with no steps or thresholds.
+ * Formula: multiplier = min + (max - min) * (velocity / scale)^exponent
+ *
+ * This creates a natural, smooth acceleration that:
+ * - Starts at min_sensitivity for slow movements
+ * - Grows smoothly with velocity (no discontinuities)
+ * - Asymptotically approaches max_sensitivity for fast movements
  *
  * @param delta Movement delta (pixels)
  * @param velocity_pps Smoothed velocity in pixels per second
@@ -287,13 +295,13 @@ float trackpad_apply_acceleration(float delta, float velocity_pps);
  * @param duration_ms Touch duration in milliseconds
  * @param net_displacement Manhattan distance from start to end
  * @param total_movement Cumulative movement during touch
- * @param is_double_tap_pending True if this is second tap in double-tap window
+ * @param tap_count Current tap count in multi-tap sequence (0=first, 1=second, etc.)
  * @return Tap classification result
  */
 trackpad_tap_result_t trackpad_classify_tap(uint32_t duration_ms,
                                             int32_t net_displacement,
                                             int32_t total_movement,
-                                            bool is_double_tap_pending);
+                                            uint8_t tap_count);
 
 #ifdef __cplusplus
 }

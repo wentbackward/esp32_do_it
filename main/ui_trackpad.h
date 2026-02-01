@@ -14,6 +14,7 @@
 
 #include "app_hid.h"
 #include "lvgl.h"
+#include "esp_lcd_touch.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +35,7 @@ typedef struct {
     uint16_t hres;                          // Horizontal resolution
     uint16_t vres;                          // Vertical resolution
     app_hid_t *hid;                         // HID handle
+    esp_lcd_touch_handle_t touch;           // Touch handle for direct reading
     ui_trackpad_mode_switch_cb_t mode_switch_cb;  // Optional: callback for mode switch button
 } trackpad_cfg_t;
 

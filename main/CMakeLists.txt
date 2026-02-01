@@ -7,7 +7,7 @@ set(SRCS
 
 # Display drivers
 if(CONFIG_APP_DISPLAY_ILI9341_SPI)
-    list(APPEND SRCS "trackpad_gesture.c" "app_display_ili9341.c")
+    list(APPEND SRCS "app_display_ili9341.c")
 elseif(CONFIG_APP_DISPLAY_RGB_PARALLEL)
     list(APPEND SRCS "app_display_rgb.c")
 elseif(CONFIG_APP_DISPLAY_LGFX)
@@ -23,7 +23,7 @@ endif()
 
 # HID drivers (build-time selection)
 if(CONFIG_APP_HID_MODE_TRACKPAD)
-    list(APPEND SRCS "app_hid_trackpad.c" "ui_trackpad.c")
+    list(APPEND SRCS "trackpad_gesture.cpp" "app_hid_trackpad.c" "ui_trackpad.c")
 elseif(CONFIG_APP_HID_MODE_MACROPAD)
     list(APPEND SRCS "app_hid_macropad.c" "ui_macropad.c")
 elseif(CONFIG_APP_HID_MODE_GAMEPAD)
