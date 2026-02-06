@@ -118,11 +118,11 @@ trackpad_zone_t trackpad_get_zone(int32_t x, int32_t y,
                                   int32_t scroll_w, int32_t scroll_h)
 {
     bool in_right = (x >= (int32_t)(hres - scroll_w));
-    bool in_bottom = (y >= (int32_t)(vres - scroll_h));
+    bool in_top = (y < (int32_t)scroll_h);
 
-    if (in_right && in_bottom) return TRACKPAD_ZONE_SCROLL_CORNER;
+    if (in_right && in_top) return TRACKPAD_ZONE_SCROLL_CORNER;
     if (in_right) return TRACKPAD_ZONE_SCROLL_V;
-    if (in_bottom) return TRACKPAD_ZONE_SCROLL_H;
+    if (in_top) return TRACKPAD_ZONE_SCROLL_H;
     return TRACKPAD_ZONE_MAIN;
 }
 

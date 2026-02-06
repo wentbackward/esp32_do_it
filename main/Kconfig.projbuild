@@ -396,6 +396,36 @@ endchoice
 menu "HID: Trackpad"
 depends on APP_HID_MODE_TRACKPAD
 
+config APP_HID_TRACKPAD_SCROLL_ENABLE
+    bool "Enable scroll zones"
+    default y
+    help
+        Enables right-edge (vertical) and bottom-edge (horizontal) scroll zones.
+
+config APP_HID_TRACKPAD_SCROLL_PERCENT
+    int "Scroll zone size (%)"
+    range 5 20
+    default 10
+    depends on APP_HID_TRACKPAD_SCROLL_ENABLE
+    help
+        Width/Height of the scroll zone as a percentage of the screen dimension.
+
+config APP_HID_TRACKPAD_SCROLL_MIN_PX
+    int "Scroll zone minimum size (pixels)"
+    range 8 32
+    default 12
+    depends on APP_HID_TRACKPAD_SCROLL_ENABLE
+    help
+        Minimum scroll zone width/height in pixels, regardless of percentage.
+
+config APP_HID_TRACKPAD_SCROLL_MAX_PX
+    int "Scroll zone maximum size (pixels)"
+    range 16 64
+    default 24
+    depends on APP_HID_TRACKPAD_SCROLL_ENABLE
+    help
+        Maximum scroll zone width/height in pixels, regardless of percentage.
+
 config APP_HID_TRACKPAD_SENSITIVITY
     int "Sensitivity (1-10)"
     range 1 10

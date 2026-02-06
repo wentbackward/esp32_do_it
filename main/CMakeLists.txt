@@ -23,7 +23,7 @@ endif()
 
 # HID drivers (build-time selection)
 if(CONFIG_APP_HID_MODE_TRACKPAD)
-    list(APPEND SRCS "trackpad_gesture.cpp" "app_hid_trackpad.c" "ui_trackpad.c")
+    list(APPEND SRCS "app_trackpad.c" "trackpad_gesture.cpp" "app_hid_trackpad.c" "ui_trackpad.c")
 elseif(CONFIG_APP_HID_MODE_MACROPAD)
     list(APPEND SRCS "app_hid_macropad.c" "ui_macropad.c")
 elseif(CONFIG_APP_HID_MODE_GAMEPAD)

@@ -1,7 +1,7 @@
 # Common settings for all boards
 
 # Application version
-CONFIG_APP_VERSION="V0.2"
+CONFIG_APP_VERSION="V0.3"
 
 # Ensure the system monitor is running for development
 CONFIG_LV_USE_SYSMON=n
